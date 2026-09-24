@@ -98,6 +98,46 @@ export type CoverRequest = {
   note: string | null;
 };
 
+/**
+ * A rotation is not a cover request wearing a different hat.
+ *
+ * Cover: one shift changes hands, and the person who asked stops working it.
+ * Rotation: two shifts trade places, and both people still work — just each
+ * other's slot. That is two shifts and two consents, which is why it needs its
+ * own table rather than another status on `cover_requests`.
+ */
+export type SwapStatus =
+  | 'pending'
+  | 'accepted'
+  | 'approved'
+  | 'declined'
+  | 'rejected'
+  | 'cancelled';
+
+export const swapStatusLabel: Record<SwapStatus, string> = {
+  pending: 'Čaka sodelavca',
+  accepted: 'Čaka vodjo',
+  approved: 'Odobreno',
+  declined: 'Sodelavec zavrnil',
+  rejected: 'Vodja zavrnil',
+  cancelled: 'Preklicano',
+};
+
+/** Still in play, so neither shift may be used for anything else. */
+export function isSwapActive(status: SwapStatus): boolean {
+  return status === 'pending' || status === 'accepted';
+}
+
+export type ShiftSwap = {
+  id: string;
+  requester_id: string;
+  requester_shift_id: string;
+  target_id: string;
+  target_shift_id: string;
+  status: SwapStatus;
+  note: string | null;
+};
+
 export type AvailabilityEntry = {
   id: string;
   worker_id: string;

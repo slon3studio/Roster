@@ -21,9 +21,11 @@ export default function TabsLayout() {
 function RoleTabs() {
   const c = usePalette();
   const { session } = useAuth();
-  const { cover } = useAppData();
+  const { cover, swaps } = useAppData();
 
-  const badge = session ? cover.badgeCount(session.profile) : 0;
+  const badge = session
+    ? cover.badgeCount(session.profile) + swaps.badgeCount(session.profile)
+    : 0;
 
   return (
     <Tabs

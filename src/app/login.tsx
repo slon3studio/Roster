@@ -14,13 +14,42 @@ import { usePalette } from '@/hooks/use-palette';
 
 export default function LoginScreen() {
   const c = usePalette();
-  const { signIn, busy, error, notice, clearMessages, requestPasswordReset } = useAuth();
+  const {
+    signIn,
+    busy,
+    error,
+    notice,
+    clearMessages,
+    requestPasswordReset,
+    completePasswordReset,
+  } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [resetting, setResetting] = useState(false);
+  /** Moves to step two only once the email has actually gone out. */
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
   const canSubmit = email.trim().length > 0 && password.length > 0;
+
+  const sendCode = async () => {
+    if (!email.includes('@')) return;
+    if (await requestPasswordReset(email)) setCodeSent(true);
+  };
+
+  const finishReset = async () => {
+    await completePasswordReset({ email, code, password: newPassword });
+  };
+
+  const leaveReset = () => {
+    clearMessages();
+    setResetting(false);
+    setCodeSent(false);
+    setCode('');
+    setNewPassword('');
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -48,7 +77,9 @@ export default function LoginScreen() {
           {resetting ? (
             <View style={{ gap: 12 }}>
               <Text style={{ fontSize: 15, color: c.textSecondary, textAlign: 'center' }}>
-                Vpiši svojo e-pošto in poslali ti bomo povezavo za novo geslo.
+                {codeSent
+                  ? 'Vpiši 6-mestno kodo iz e-pošte in izberi novo geslo.'
+                  : 'Vpiši svojo e-pošto in poslali ti bomo kodo za novo geslo.'}
               </Text>
 
               <AuthField
@@ -58,25 +89,64 @@ export default function LoginScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoComplete="email"
-                returnKeyType="send"
-                onSubmitEditing={() => requestPasswordReset(email)}
+                returnKeyType={codeSent ? 'next' : 'send'}
+                onSubmitEditing={() => void sendCode()}
               />
+
+              {codeSent ? (
+                <>
+                  <AuthField
+                    icon="code"
+                    placeholder="Koda iz e-pošte"
+                    value={code}
+                    onChangeText={setCode}
+                    keyboardType="number-pad"
+                    autoComplete="one-time-code"
+                    mono
+                    returnKeyType="next"
+                  />
+
+                  <AuthField
+                    icon="lock"
+                    placeholder="Novo geslo"
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secure
+                    autoComplete="new-password"
+                    returnKeyType="go"
+                    onSubmitEditing={() => void finishReset()}
+                  />
+                </>
+              ) : null}
 
               {error ? <Message text={error} kind="error" /> : null}
               {notice ? <Message text={notice} kind="notice" /> : null}
 
-              <PrimaryButton
-                title="Pošlji povezavo"
-                loading={busy}
-                disabled={!email.includes('@')}
-                onPress={() => requestPasswordReset(email)}
-              />
+              {codeSent ? (
+                <PrimaryButton
+                  title="Shrani novo geslo"
+                  loading={busy}
+                  disabled={code.replace(/\s/g, '').length !== 6 || newPassword.length < 6}
+                  onPress={() => void finishReset()}
+                />
+              ) : (
+                <PrimaryButton
+                  title="Pošlji kodo"
+                  loading={busy}
+                  disabled={!email.includes('@')}
+                  onPress={() => void sendCode()}
+                />
+              )}
 
-              <Pressable
-                onPress={() => {
-                  clearMessages();
-                  setResetting(false);
-                }}>
+              {codeSent ? (
+                <Pressable onPress={() => void sendCode()} disabled={busy}>
+                  <Text style={{ textAlign: 'center', fontSize: 13, color: c.textSecondary }}>
+                    Kode ni prišlo? Pošlji znova
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              <Pressable onPress={leaveReset}>
                 <Text style={{ textAlign: 'center', fontSize: 14, color: c.textSecondary }}>
                   Nazaj na prijavo
                 </Text>

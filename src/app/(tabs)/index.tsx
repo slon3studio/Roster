@@ -4,7 +4,8 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { Icon } from '@/components/ui/icon';
 import { ScheduleDayGrid } from '@/components/schedule-day-grid';
 import { ScheduleGrid, type ScheduleLayout } from '@/components/schedule-grid';
-import { AddShiftSheet, CoverRequestSheet, ShiftEditorSheet } from '@/components/shift-sheets';
+import { ShiftActionSheet } from '@/components/shift-action-sheet';
+import { AddShiftSheet, ShiftEditorSheet } from '@/components/shift-sheets';
 import { Message } from '@/components/ui/auth-parts';
 import { AppBackground, Card, WeekPicker } from '@/components/ui/design';
 import { useAppData } from '@/contexts/app-data';
@@ -19,7 +20,7 @@ import type { Shift, ShiftSlot } from '@/types';
 export default function ScheduleScreen() {
   const c = usePalette();
   const { session } = useAuth();
-  const { team, cover } = useAppData();
+  const { team, cover, swaps } = useAppData();
   const schedule = useSchedule();
 
   const [weekStart, setWeekStart] = useState(defaultWeek());
@@ -27,7 +28,7 @@ export default function ScheduleScreen() {
   const [editing, setEditing] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [addTarget, setAddTarget] = useState<{ day: number; slot: ShiftSlot } | null>(null);
-  const [requestingShift, setRequestingShift] = useState<Shift | null>(null);
+  const [actingShift, setActingShift] = useState<Shift | null>(null);
 
   const isManager = session?.profile.role === 'manager';
 
@@ -42,7 +43,7 @@ export default function ScheduleScreen() {
   }, [weekStart]);
 
   const refresh = useCallback(async () => {
-    await Promise.all([schedule.loadWeek(weekStart), cover.load(), team.load()]);
+    await Promise.all([schedule.loadWeek(weekStart), cover.load(), swaps.load(), team.load()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekStart]);
 
@@ -59,13 +60,17 @@ export default function ScheduleScreen() {
     editing: isManager && editing,
     highlightWorkerId: isManager ? undefined : profile.id,
     coverShiftIds: cover.shiftIdsAwaitingCover,
+    swapShiftIds: swaps.shiftIdsInSwap,
     onSelectShift: (shift: Shift) => {
       if (isManager) {
         if (editing) setEditingShift(shift);
         return;
       }
-      // Only your own shift is yours to hand over.
-      if (shift.assigned_worker_id === profile.id) setRequestingShift(shift);
+      // Any assigned shift opens the sheet, which then decides what a worker
+      // may actually do with it: hand over their own, take over a red one,
+      // or offer a rotation for a colleague's. Refusing to open on someone
+      // else's shift is what forced people into the Menjave tab before.
+      if (shift.assigned_worker_id) setActingShift(shift);
     },
     onSelectEmpty: (day: number, slot: ShiftSlot) => {
       if (isManager && editing) setAddTarget({ day, slot });
@@ -260,27 +265,22 @@ export default function ScheduleScreen() {
         />
       ) : null}
 
-      {requestingShift ? (
-        <CoverRequestSheet
-          key={requestingShift.id}
-          shift={requestingShift}
-          existing={cover.requestFor(requestingShift.id)}
-          positionName={schedule.positionOf(requestingShift.position_id)?.name ?? null}
-          working={cover.working}
-          errorMessage={cover.error}
+      {actingShift ? (
+        <ShiftActionSheet
+          key={actingShift.id}
+          shift={actingShift}
+          meId={profile.id}
+          schedule={schedule}
+          team={team}
+          cover={cover}
+          swaps={swaps}
           onClose={() => {
             cover.clearMessages();
-            setRequestingShift(null);
-          }}
-          onRequest={async (note) => {
-            const ok = await cover.requestCover(requestingShift.id, note);
-            if (ok) await schedule.loadWeek(weekStart);
-            return ok;
-          }}
-          onCancelRequest={async (id) => {
-            const ok = await cover.cancel(id);
-            if (ok) await schedule.loadWeek(weekStart);
-            return ok;
+            swaps.clearMessages();
+            setActingShift(null);
+            // An approved cover or rotation moves a shift to someone else, so
+            // the grid has to be re-read, not just the request lists.
+            void schedule.loadWeek(weekStart);
           }}
         />
       ) : null}

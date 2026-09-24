@@ -26,6 +26,11 @@ type AuthValue = {
   }) => Promise<void>;
   signOut: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<boolean>;
+  completePasswordReset: (args: {
+    email: string;
+    code: string;
+    password: string;
+  }) => Promise<boolean>;
   reload: () => Promise<void>;
 };
 
@@ -260,10 +265,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(slovenian(resetError.message));
         return false;
       }
-      setNotice('Poslali smo ti e-pošto za ponastavitev gesla.');
+      setNotice('Poslali smo ti e-pošto s kodo. Vpiši jo spodaj.');
       return true;
     },
     [clearMessages],
+  );
+
+  /**
+   * Finishes the reset with the 6-digit code from the email.
+   *
+   * A deep link would be the other way, but the link in Supabase's email
+   * points at the project's Site URL, and Rotaly has no web page to land on —
+   * so the emailed link went to localhost and died. A code needs no web page,
+   * no URL allow-list and no custom scheme, which also means it works
+   * unchanged in Expo Go.
+   *
+   * `verifyOtp` signs the account in, and only then can the password be
+   * changed. There is deliberately no `onAuthStateChange` listener in this
+   * file, so that intermediate session does not move the app into the tabs
+   * before the new password has actually been stored; `reload()` at the end is
+   * what publishes it.
+   */
+  const completePasswordReset = useCallback(
+    async ({ email, code, password }: { email: string; code: string; password: string }) => {
+      clearMessages();
+      const trimmedEmail = email.trim();
+      const trimmedCode = code.replace(/\s/g, '');
+
+      if (trimmedCode.length !== 6) {
+        setError('Koda iz e-pošte ima 6 števk.');
+        return false;
+      }
+      if (password.length < 6) {
+        setError('Novo geslo mora imeti vsaj 6 znakov.');
+        return false;
+      }
+
+      setBusy(true);
+
+      const { error: otpError } = await supabase.auth.verifyOtp({
+        email: trimmedEmail,
+        token: trimmedCode,
+        type: 'recovery',
+      });
+
+      if (otpError) {
+        setBusy(false);
+        setError(slovenian(otpError.message));
+        return false;
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+
+      if (updateError) {
+        // Verified but the password never changed. Staying signed in here
+        // would look like success, so end the half-finished session.
+        await supabase.auth.signOut();
+        setBusy(false);
+        setError(slovenian(updateError.message));
+        return false;
+      }
+
+      setBusy(false);
+      setNotice('Geslo je spremenjeno.');
+      await reload();
+      return true;
+    },
+    [clearMessages, reload],
   );
 
   const value = useMemo<AuthValue>(
@@ -279,9 +347,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signUp,
       signOut,
       requestPasswordReset,
+      completePasswordReset,
       reload,
     }),
-    [status, session, busy, error, notice, clearMessages, signIn, signUp, signOut, requestPasswordReset, reload],
+    [
+      status,
+      session,
+      busy,
+      error,
+      notice,
+      clearMessages,
+      signIn,
+      signUp,
+      signOut,
+      requestPasswordReset,
+      completePasswordReset,
+      reload,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -307,7 +389,18 @@ function slovenian(raw: string): string {
     return 'Ta e-pošta je že registrirana. Prijavi se.';
   if (lower.includes('unable to validate email') || lower.includes('invalid format'))
     return 'E-pošta ni v veljavni obliki.';
+  // Before the length rule below: "New password should be different from the
+  // old password" also contains "password should be", and matching that first
+  // told the user to use six characters when the real problem was reuse.
+  if (lower.includes('same as the old') || lower.includes('should be different'))
+    return 'Novo geslo mora biti drugačno od starega.';
   if (lower.includes('password should be')) return 'Geslo mora imeti vsaj 6 znakov.';
+  // Reset with a code: a wrong digit, a code used twice and an hour-old code
+  // all come back as the same message, so one reply has to cover all three.
+  if (lower.includes('token has expired') || lower.includes('invalid token') || lower.includes('otp'))
+    return 'Koda ni pravilna ali je potekla. Pošlji si novo.';
+  if (lower.includes('for security purposes'))
+    return 'Malo prehitro. Počakaj minuto in poskusi znova.';
   if (lower.includes('rate limit') || lower.includes('too many requests'))
     return 'Preveč poskusov. Počakaj minuto in poskusi znova.';
   if (lower.includes('network') || lower.includes('fetch failed'))

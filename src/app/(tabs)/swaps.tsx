@@ -18,13 +18,14 @@ import { useSchedule } from '@/hooks/use-schedule';
 import { radius, semantic } from '@/lib/theme';
 import * as time from '@/lib/time';
 import { addWeeks, dayName, mondayOf } from '@/lib/week';
-import type { CoverRequest, CoverStatus } from '@/types';
-import { coverStatusLabel } from '@/types';
+import { Icon } from '@/components/ui/icon';
+import type { CoverRequest, CoverStatus, ShiftSwap } from '@/types';
+import { coverStatusLabel, slotLabel, swapStatusLabel } from '@/types';
 
 export default function SwapsScreen() {
   const c = usePalette();
   const { session } = useAuth();
-  const { team, cover } = useAppData();
+  const { team, cover, swaps } = useAppData();
   const schedule = useSchedule();
 
   const isManager = session?.profile.role === 'manager';
@@ -48,7 +49,8 @@ export default function SwapsScreen() {
 
   const refresh = useCallback(async () => {
     cover.clearMessages();
-    await Promise.all([loadNearbyWeeks(), cover.load(), team.load()]);
+    swaps.clearMessages();
+    await Promise.all([loadNearbyWeeks(), cover.load(), swaps.load(), team.load()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -79,6 +81,10 @@ export default function SwapsScreen() {
     (r) => r.status === 'claimed' && r.requested_by !== me && r.claimed_by !== me,
   );
 
+  const acceptedSwaps = swaps.swaps.filter((s) => s.status === 'accepted');
+  const incomingSwaps = swaps.incoming(me);
+  const mySwaps = swaps.mine(me);
+
   const card = (request: CoverRequest, actions: React.ReactNode) => {
     const shift = schedule.shiftById(request.shift_id);
     const isMine = request.requested_by === me;
@@ -86,6 +92,18 @@ export default function SwapsScreen() {
     return (
       <View key={request.id} style={{ position: 'relative' }}>
         <Card>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 12,
+            }}>
+            <KindPill label="MENJAVA" tint={statusTint(request.status)} />
+            <View style={{ flex: 1 }} />
+            <StatusPill status={request.status} />
+          </View>
+
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
             <InitialsAvatar name={team.nameOf(request.requested_by)} size={38} />
 
@@ -105,8 +123,6 @@ export default function SwapsScreen() {
                   : 'Smena iz drugega tedna'}
               </Text>
             </View>
-
-            <StatusPill status={request.status} />
           </View>
 
           {request.note ? (
@@ -155,6 +171,95 @@ export default function SwapsScreen() {
     );
   };
 
+  /**
+   * A rotation card shows both sides stacked, because the whole point is the
+   * pairing. Reusing the cover card would have shown one shift and hidden the
+   * other, which is exactly the confusion the two names are meant to prevent.
+   */
+  const swapCard = (swap: ShiftSwap, actions: React.ReactNode) => {
+    const involvesMe = swap.requester_id === me || swap.target_id === me;
+
+    return (
+      <View key={swap.id} style={{ position: 'relative' }}>
+        <Card>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <KindPill label="ROTACIJA" tint={c.accent} />
+            <View style={{ flex: 1 }} />
+            <Text style={{ fontSize: 10, fontWeight: '600', color: c.textSecondary }}>
+              {swapStatusLabel[swap.status]}
+            </Text>
+          </View>
+
+          <View style={{ gap: 8, marginTop: 12 }}>
+            {swapSide(swap.requester_id, swap.requester_shift_id)}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+              <Icon name="rotate" size={13} color={c.accent} />
+              <Text style={{ fontSize: 11, color: c.textSecondary }}>zamenjata smeni</Text>
+            </View>
+            {swapSide(swap.target_id, swap.target_shift_id)}
+          </View>
+
+          {swap.note ? (
+            <Text
+              style={{
+                fontSize: 12,
+                fontStyle: 'italic',
+                color: c.textSecondary,
+                backgroundColor: c.fill,
+                borderRadius: radius.sm,
+                padding: 10,
+                marginTop: 12,
+              }}>
+              „{swap.note}”
+            </Text>
+          ) : null}
+
+          {actions ? (
+            <View
+              style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              {actions}
+            </View>
+          ) : null}
+        </Card>
+
+        <View
+          style={{
+            position: 'absolute',
+            left: 1,
+            top: 14,
+            bottom: 14,
+            width: 4,
+            borderRadius: 2,
+            backgroundColor: involvesMe ? c.accent : c.border,
+          }}
+        />
+      </View>
+    );
+  };
+
+  const swapSide = (workerId: string, shiftId: string) => {
+    const shift = schedule.shiftById(shiftId);
+
+    return (
+      <View
+        key={shiftId}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <InitialsAvatar name={team.nameOf(workerId)} size={30} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: c.text }}>
+            {team.nameOf(workerId)}
+          </Text>
+          <Text style={{ fontSize: 11, color: shift ? c.textSecondary : c.textTertiary }}>
+            {shift
+              ? `${dayName(shift.day_of_week)} · ${slotLabel[shift.slot]} · ${time.range(shift.start_time, shift.end_time)}`
+              : 'Smena iz drugega tedna'}
+          </Text>
+        </View>
+        {shift ? <PositionBadge position={schedule.positionOf(shift.position_id)} /> : null}
+      </View>
+    );
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <AppBackground />
@@ -164,8 +269,12 @@ export default function SwapsScreen() {
         refreshControl={<RefreshControl refreshing={cover.loading} onRefresh={refresh} />}>
         <Text style={{ fontSize: 26, fontWeight: '700', color: c.text }}>Menjave</Text>
 
-        {cover.error ? <Message text={cover.error} kind="error" /> : null}
-        {cover.notice ? <Message text={cover.notice} kind="notice" /> : null}
+        {cover.error ?? swaps.error ? (
+          <Message text={(cover.error ?? swaps.error) as string} kind="error" />
+        ) : null}
+        {cover.notice ?? swaps.notice ? (
+          <Message text={(cover.notice ?? swaps.notice) as string} kind="notice" />
+        ) : null}
 
         {isManager ? (
           <>
@@ -194,6 +303,37 @@ export default function SwapsScreen() {
                       tint={semantic.red}
                       onPress={() => void cover.resolve(request.id, false)}
                       disabled={cover.working}
+                    />
+                  </>,
+                ),
+              )
+            )}
+
+            <SectionTitle
+              text="Rotacije za odobritev"
+              trailing={acceptedSwaps.length ? String(acceptedSwaps.length) : undefined}
+            />
+            {acceptedSwaps.length === 0 ? (
+              <Card>
+                <EmptyHint text="Nobena rotacija ne čaka na tvojo potrditev." />
+              </Card>
+            ) : (
+              acceptedSwaps.map((swap) =>
+                swapCard(
+                  swap,
+                  <>
+                    <ActionChip
+                      label="Odobri"
+                      tint={semantic.green}
+                      filled
+                      onPress={() => void swaps.resolve(swap.id, true)}
+                      disabled={swaps.working}
+                    />
+                    <ActionChip
+                      label="Zavrni"
+                      tint={semantic.red}
+                      onPress={() => void swaps.resolve(swap.id, false)}
+                      disabled={swaps.working}
                     />
                   </>,
                 ),
@@ -265,6 +405,37 @@ export default function SwapsScreen() {
               </>
             ) : null}
 
+            <SectionTitle
+              text="Rotacije zame"
+              trailing={incomingSwaps.length ? String(incomingSwaps.length) : undefined}
+            />
+            {incomingSwaps.length === 0 ? (
+              <Card>
+                <EmptyHint text="Nihče ti ne predlaga rotacije." />
+              </Card>
+            ) : (
+              incomingSwaps.map((swap) =>
+                swapCard(
+                  swap,
+                  <>
+                    <ActionChip
+                      label="Sprejmem"
+                      tint={c.accent}
+                      filled
+                      onPress={() => void swaps.respond(swap.id, true)}
+                      disabled={swaps.working}
+                    />
+                    <ActionChip
+                      label="Zavrnem"
+                      tint={semantic.red}
+                      onPress={() => void swaps.respond(swap.id, false)}
+                      disabled={swaps.working}
+                    />
+                  </>,
+                ),
+              )
+            )}
+
             <SectionTitle text="Moje menjave" />
             {mine.length === 0 ? (
               <Card>
@@ -287,9 +458,47 @@ export default function SwapsScreen() {
                 ),
               )
             )}
+
+            <SectionTitle text="Moje rotacije" />
+            {mySwaps.length === 0 ? (
+              <Card>
+                <EmptyHint text="Nimaš aktivnih rotacij." />
+              </Card>
+            ) : (
+              mySwaps.map((swap) =>
+                swapCard(
+                  swap,
+                  swap.requester_id === me ? (
+                    <ActionChip
+                      label="Prekliči"
+                      tint={semantic.red}
+                      onPress={() => void swaps.cancel(swap.id)}
+                      disabled={swaps.working}
+                    />
+                  ) : null,
+                ),
+              )
+            )}
           </>
         )}
       </ScrollView>
+    </View>
+  );
+}
+
+/** Names the kind on the card itself, so the two can never be read as one. */
+function KindPill({ label, tint }: { label: string; tint: string }) {
+  return (
+    <View
+      style={{
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: radius.pill,
+        backgroundColor: tint + '24',
+      }}>
+      <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 0.6, color: tint }}>
+        {label}
+      </Text>
     </View>
   );
 }

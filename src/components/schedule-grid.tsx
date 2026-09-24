@@ -28,6 +28,13 @@ export type GridProps = {
    * trying to give away is the more urgent fact.
    */
   coverShiftIds?: Set<string>;
+  /**
+   * Shifts on either side of a live rotation. Kept apart from
+   * `coverShiftIds` on purpose: red means "nobody is down to work this yet",
+   * purple means "two people have agreed to trade". Reading one as the other
+   * is how someone turns up on the wrong day.
+   */
+  swapShiftIds?: Set<string>;
   onSelectShift?: (shift: Shift) => void;
   onSelectEmpty?: (day: number, slot: ShiftSlot) => void;
 };
@@ -167,6 +174,7 @@ export function Cell({
   editing,
   highlightWorkerId,
   coverShiftIds,
+  swapShiftIds,
   onSelectShift,
   onSelectEmpty,
   day,
@@ -203,6 +211,7 @@ export function Cell({
           shift={shift}
           mine={mine}
           needsCover={coverShiftIds?.has(shift.id) ?? false}
+          inRotation={swapShiftIds?.has(shift.id) ?? false}
           schedule={schedule}
           team={team}
           organization={organization}
@@ -236,6 +245,7 @@ export function Chip({
   shift,
   mine,
   needsCover,
+  inRotation,
   schedule,
   team,
   organization,
@@ -243,6 +253,7 @@ export function Chip({
   shift: Shift;
   mine: boolean;
   needsCover: boolean;
+  inRotation: boolean;
   schedule: ScheduleHook;
   team: TeamHook;
   organization: Organization;
@@ -253,8 +264,18 @@ export function Chip({
   const duty = schedule.dutyNameOf(shift.duty_id);
   const note = schedule.timeNoteOf(shift, organization);
 
+  // The cell already carries six colour meanings (slot, you, cover, conflict,
+  // position, adjusted time). A rotation gets a dashed edge instead of a
+  // seventh colour: the broken line reads as "agreed, not final", and it can
+  // sit on top of any of the fills without changing what they mean.
   const fill = needsCover ? semantic.red + '24' : mine ? c.accentSoft : c.fill;
-  const stroke = needsCover ? semantic.red + '73' : mine ? c.accent + '73' : 'transparent';
+  const stroke = needsCover
+    ? semantic.red + '73'
+    : inRotation
+      ? c.accent
+      : mine
+        ? c.accent + '73'
+        : 'transparent';
 
   return (
     <View
@@ -266,7 +287,8 @@ export function Chip({
         paddingVertical: 6,
         borderRadius: radius.sm,
         backgroundColor: fill,
-        borderWidth: 1,
+        borderWidth: inRotation ? 1.4 : 1,
+        borderStyle: inRotation ? 'dashed' : 'solid',
         borderColor: stroke,
       }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -285,6 +307,7 @@ export function Chip({
 
         {conflict ? <Icon name="warning" size={10} color={semantic.yellow} /> : null}
         {needsCover ? <Icon name="swap" size={10} color={semantic.red} /> : null}
+        {inRotation ? <Icon name="rotate" size={10} color={c.accent} /> : null}
       </View>
 
       {duty ? (

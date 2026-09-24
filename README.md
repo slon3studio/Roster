@@ -89,10 +89,23 @@ have no worker password: the cover-request sheet, the shift-log editor, and the
 hours + hourly-rate section of the profile. The code is there and typechecks;
 sign in as `ivo1` to exercise it.
 
+## Two kinds of hand-over, deliberately named apart
+
+- **Menjava** (cover) — one shift changes hands and the person who asked stops
+  working. `cover_requests`, claimed by a colleague, approved by the manager.
+- **Rotacija** (rotation) — two shifts trade places and both people still work.
+  `shift_swaps`, which needs two consents plus the manager's.
+
+They are separate tables, separate hooks, separate cards and separate words on
+screen, because the failure mode is somebody reading one as the other and
+turning up on the wrong day. On the schedule, cover is red and a rotation is a
+dashed edge; `shift_is_busy()` in the database stops one shift being in both.
+
+Both are actioned by tapping the shift on the schedule. The Menjave tab is the
+list view, not the only way in.
+
 ## Not built (deliberate)
 
-- **Swap UI.** Migration 0014 has `shift_swaps` plus propose / respond /
-  cancel / resolve. Testable via SQL; no screen yet.
 - **Push notifications.** `expo-notifications` needs an Apple Developer
   account. Nothing written for it would have survived the port, so it waited.
 - **Drag and drop.** The grids are tap-to-move, as agreed.

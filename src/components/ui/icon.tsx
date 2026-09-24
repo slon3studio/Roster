@@ -38,6 +38,8 @@ const ICONS = {
   layout: { ios: 'square.grid.3x3', android: 'grid_view', ion: 'grid-outline' },
   pencil: { ios: 'pencil', android: 'edit', ion: 'pencil-outline' },
   code: { ios: 'number', android: 'numbers', ion: 'keypad-outline' },
+  rotate: { ios: 'arrow.2.squarepath', android: 'sync_alt', ion: 'repeat' },
+  copy: { ios: 'doc.on.doc', android: 'content_copy', ion: 'copy-outline' },
 } as const;
 
 export type IconName = keyof typeof ICONS;

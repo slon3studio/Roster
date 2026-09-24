@@ -10,6 +10,10 @@ import { Platform } from 'react-native';
  *   teal    — morning shift
  *   orange  — afternoon shift, an adjusted time
  *   red     — a shift someone is trying to hand over
+ *
+ * A rotation deliberately gets no colour of its own — it is drawn as a dashed
+ * edge, so "two people have agreed to trade" can sit on top of any fill
+ * without competing with the meanings above.
  */
 /** The colour slots every screen reads. Declared so both themes share a shape. */
 export type Palette = {

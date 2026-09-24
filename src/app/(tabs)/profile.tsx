@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
+import { JoinCode } from '@/components/ui/join-code';
 import { ShiftLogEditorSheet } from '@/components/shift-sheets';
 import { Message } from '@/components/ui/auth-parts';
 import {
@@ -19,7 +20,7 @@ import { useAuth } from '@/contexts/auth';
 import { useEarnings } from '@/hooks/use-earnings';
 import { usePalette } from '@/hooks/use-palette';
 import { dayAndDate, hours, money, monthLabel, parseDecimal, shiftCount } from '@/lib/format';
-import { fonts, radius, semantic } from '@/lib/theme';
+import { radius, semantic } from '@/lib/theme';
 import * as time from '@/lib/time';
 import type { Profile, ShiftLog } from '@/types';
 
@@ -108,22 +109,7 @@ export default function ProfileScreen() {
           <>
             <Card>
               <SectionTitle text="Koda za pridružitev" />
-              <Text
-                selectable
-                style={{
-                  fontSize: 30,
-                  fontWeight: '700',
-                  letterSpacing: 3,
-                  textAlign: 'center',
-                  color: c.accent,
-                  fontFamily: fonts.mono,
-                  paddingVertical: 12,
-                  marginTop: 10,
-                  backgroundColor: c.accentSoft,
-                  borderRadius: radius.md,
-                }}>
-                {team.rotatedJoinCode ?? organization.join_code}
-              </Text>
+              <JoinCode code={team.rotatedJoinCode ?? organization.join_code} />
 
               <Pressable
                 onPress={() => void team.rotateJoinCode()}

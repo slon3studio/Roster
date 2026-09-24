@@ -56,6 +56,16 @@ you end up storing the wrong Monday, or halving someone's hours.
 the two once meant a missing migration was reported to the user as "you do not
 belong to a restaurant" — wrong, and unfixable from the UI.
 
+## The database
+
+`supabase/migrations/` is the single source of truth for the schema — all 14
+migrations, in order, plus `verify_isolation.sql`. **Edit them here.** The Swift
+app at `~/Desktop/Rotaly` has an older copy from before the port; it is a dead
+copy kept only so that project still reads sensibly.
+
+The user runs migrations by hand in the Supabase SQL editor, so a new one is
+not applied until they say it is.
+
 ## What is ported
 
 The whole finished Swift app, not a staged subset. Every screen it had exists

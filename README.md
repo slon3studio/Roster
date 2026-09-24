@@ -1,56 +1,98 @@
-# Welcome to your Expo app 👋
+# Rotaly — React Native (Expo)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Port of the SwiftUI app at `~/Desktop/Rotaly`. **The Supabase backend is
+shared and unchanged** — same project, same 14 migrations, same 12 RPCs. Only
+the UI is being rewritten.
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Run it
 
 ```bash
-npm run reset-project
+npx expo start          # then scan the QR with Expo Go, or press i / a
+npx tsc --noEmit        # typecheck
+npx expo lint           # lint
+npx expo-doctor         # dependency / config sanity
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Configuration
 
-### Other setup steps
+`.env` (gitignored, `.env.example` is the template):
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```
+EXPO_PUBLIC_SUPABASE_URL=...
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+```
 
-## Learn more
+Both are public by design — RLS is what protects the data. A `sb_secret_` key
+must never go here; `src/lib/supabase.ts` refuses to start if it sees one.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Where things live
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+src/app/                 routes (Expo Router — every file is a screen)
+  _layout.tsx            auth gate via Stack.Protected
+  login.tsx
+  register.tsx
+  (tabs)/                the signed-in shell
+src/contexts/auth.tsx    session, role, org — the AuthService counterpart
+src/lib/supabase.ts      the single client
+src/lib/theme.ts         palette; the four semantic colours are load-bearing
+src/types/index.ts       row shapes, mirroring the Postgres tables
+src/components/ui/       shared pieces
+```
 
-## Join the community
+Keep non-route code out of `src/app/` — Expo Router treats every file there as
+a screen.
 
-Join our community of developers creating universal apps.
+## Notes carried over from the Swift app
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+**Dates and times cross the boundary as strings**, never as `Date`. Postgres
+`date` and `time` have no zone, so parsing them into a local date object is how
+you end up storing the wrong Monday, or halving someone's hours.
+
+**The client never sends `organization_id`.** Triggers derive it from
+`auth.uid()`. If you find yourself typing it, something is wrong.
+
+**"No rows" is not an error.** Use `maybeSingle()`, not `single()`. Collapsing
+the two once meant a missing migration was reported to the user as "you do not
+belong to a restaurant" — wrong, and unfixable from the UI.
+
+## What is ported
+
+The whole finished Swift app, not a staged subset. Every screen it had exists
+here:
+
+| Screen | Route | Verified in the simulator |
+| --- | --- | --- |
+| Login | `app/login.tsx` | yes — signs in, rejects bad credentials |
+| Registracija | `app/register.tsx` | yes — signs straight in, no extra step |
+| Urnik, week grid | `(tabs)/index.tsx` + `components/schedule-grid.tsx` | yes |
+| Urnik, vertical grid | `components/schedule-day-grid.tsx` | yes — days down, slots across, same design |
+| Shift editor sheet | `components/shift-sheets.tsx` | yes — times, position, duty, conflict warning, delete |
+| Add-shift sheet | `components/shift-sheets.tsx` | yes — active workers only, `Dodaj` gated on a pick |
+| Želje (worker + manager) | `(tabs)/wishes.tsx` | yes (manager side; worker side not re-checked since the port) |
+| Menjave | `(tabs)/swaps.tsx` | yes — both manager sections render, with their empty states |
+| Profil | `(tabs)/profile.tsx` | yes — join code, rotate, team list, role badges |
+| Delovna mesta in zadolžitve | `app/catalog.tsx` | yes — including the position editor (label, 9-colour palette, live preview, `V uporabi`) |
+
+Not verified by clicking, because they only appear for a worker account and I
+have no worker password: the cover-request sheet, the shift-log editor, and the
+hours + hourly-rate section of the profile. The code is there and typechecks;
+sign in as `ivo1` to exercise it.
+
+## Not built (deliberate)
+
+- **Swap UI.** Migration 0014 has `shift_swaps` plus propose / respond /
+  cancel / resolve. Testable via SQL; no screen yet.
+- **Push notifications.** `expo-notifications` needs an Apple Developer
+  account. Nothing written for it would have survived the port, so it waited.
+- **Drag and drop.** The grids are tap-to-move, as agreed.
+- Copy-last-week, a submission deadline, export/share, the chat feed, and the
+  manager team-hours view.
+
+## Known rough edges
+
+- The brand mark and the tab bar use emoji as placeholders. The real
+  1024×1024 icon is at
+  `~/Desktop/Rotaly/Rotaly/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png`.
+- Expo Go's floating dev-menu bubble sits on top of the `Uredi` button in the
+  top-right. Drag the bubble away, or ignore it — it is not part of the app.

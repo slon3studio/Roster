@@ -27,9 +27,19 @@ export const configError: string | null = (() => {
   return null;
 })();
 
+/**
+ * Where the session is kept.
+ *
+ * On iOS and Android the import at the top installs a `localStorage` backed by
+ * SQLite; in a browser it is the real one. It is read through a guard because
+ * the web build also evaluates this module outside any browser, and touching
+ * `localStorage` there throws before the app can render a single pixel.
+ */
+const sessionStore = typeof localStorage === 'undefined' ? undefined : localStorage;
+
 export const supabase = createClient(url ?? 'https://placeholder.supabase.co', publishableKey ?? 'placeholder', {
   auth: {
-    storage: localStorage,
+    storage: sessionStore,
     autoRefreshToken: true,
     persistSession: true,
     // No URL-based session handoff on a phone; the app owns the session.

@@ -17,7 +17,7 @@ import { usePalette } from '@/hooks/use-palette';
 import { fonts, radius } from '@/lib/theme';
 
 /**
- * The signed-out screens are the first thing anyone sees of Rotaly, so they
+ * The signed-out screens are the first thing anyone sees of Rotera, so they
  * get a branded background rather than a plain form.
  */
 export function AuthBackground() {
@@ -40,23 +40,14 @@ export function BrandMark({ subtitle = 'Urnik za tvojo ekipo' }: { subtitle?: st
 
   return (
     <View style={{ alignItems: 'center', gap: 16 }}>
-      <LinearGradient
-        colors={[c.accent, c.accent + 'A6']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          width: 78,
-          height: 78,
-          borderRadius: 22,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-        <Image
-          source={require('../../../assets/images/brand-glyph.png')}
-          style={{ width: 42, height: 39 }}
-          contentFit="contain"
-        />
-      </LinearGradient>
+      {/* The real app icon rather than a tinted glyph: whoever installs this
+          sees the same mark on their home screen a second later, and two
+          almost-alike marks read as a mistake. */}
+      <Image
+        source={require('../../../assets/images/brand-icon.png')}
+        style={{ width: 78, height: 78, borderRadius: 20 }}
+        contentFit="cover"
+      />
 
       <View style={{ alignItems: 'center', gap: 5 }}>
         <Text
@@ -66,7 +57,7 @@ export function BrandMark({ subtitle = 'Urnik za tvojo ekipo' }: { subtitle?: st
             color: c.text,
             fontFamily: fonts.rounded,
           }}>
-          Rotaly
+          Rotera
         </Text>
         <Text style={{ fontSize: 15, color: c.textSecondary }}>{subtitle}</Text>
       </View>

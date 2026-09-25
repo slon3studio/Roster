@@ -1,9 +1,9 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useState } from 'react';
-import { Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { DestructiveButton, Sheet, SheetFootnote, SheetRow } from '@/components/sheet';
 import { Card, PositionChips, SectionTitle } from '@/components/ui/design';
+import { TimeField } from '@/components/ui/time-field';
 import { Message } from '@/components/ui/auth-parts';
 import { usePalette } from '@/hooks/use-palette';
 import { parseDecimal } from '@/lib/format';
@@ -12,48 +12,6 @@ import * as time from '@/lib/time';
 import { dayName } from '@/lib/week';
 import type { Duty, Position, ScheduleConflict, Shift, ShiftSlot } from '@/types';
 import { conflictExplanation, slotLabel } from '@/types';
-
-function TimeField({ value, onChange }: { value: Date; onChange: (next: Date) => void }) {
-  const c = usePalette();
-  const [open, setOpen] = useState(Platform.OS === 'ios');
-
-  if (Platform.OS === 'ios') {
-    return (
-      <DateTimePicker
-        value={value}
-        mode="time"
-        display="compact"
-        onChange={(_, next) => next && onChange(next)}
-      />
-    );
-  }
-
-  return (
-    <>
-      <Pressable
-        onPress={() => setOpen(true)}
-        style={{
-          paddingHorizontal: 12,
-          paddingVertical: 8,
-          borderRadius: radius.sm,
-          backgroundColor: c.fill,
-        }}>
-        <Text style={{ fontSize: 15, color: c.text }}>{time.fromDate(value).slice(0, 5)}</Text>
-      </Pressable>
-
-      {open ? (
-        <DateTimePicker
-          value={value}
-          mode="time"
-          onChange={(_, next) => {
-            setOpen(false);
-            if (next) onChange(next);
-          }}
-        />
-      ) : null}
-    </>
-  );
-}
 
 /** Edit one person's shift: hours, position, duty. Where "do 15" comes from. */
 export function ShiftEditorSheet({

@@ -10,7 +10,7 @@ import { usePalette } from '@/hooks/use-palette';
 import type { ScheduleHook } from '@/hooks/use-schedule';
 import type { SwapsHook } from '@/hooks/use-swaps';
 import type { TeamHook } from '@/hooks/use-team';
-import { radius } from '@/lib/theme';
+import { radius, semantic } from '@/lib/theme';
 import * as time from '@/lib/time';
 import { dayName } from '@/lib/week';
 import type { Shift } from '@/types';
@@ -169,7 +169,7 @@ export function ShiftActionSheet({
                           {slotLabel[mine.slot]} · {time.range(mine.start_time, mine.end_time)}
                         </Text>
                       </View>
-                      <Icon name="rotate" size={17} color={c.accent} />
+                      <Icon name="rotate" size={17} color={semantic.purple} />
                     </View>
                   </Card>
                 </Pressable>
@@ -234,7 +234,7 @@ function RotationState({
             shift={schedule.shiftById(swap.requester_shift_id)}
           />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icon name="rotate" size={14} color={c.accent} />
+            <Icon name="rotate" size={14} color={semantic.purple} />
             <Text style={{ fontSize: 12, color: c.textSecondary }}>zamenjata smeni</Text>
           </View>
           <Pair

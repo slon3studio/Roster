@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { JoinCode } from '@/components/ui/join-code';
@@ -19,7 +19,7 @@ import { useAppData } from '@/contexts/app-data';
 import { useAuth } from '@/contexts/auth';
 import { useEarnings } from '@/hooks/use-earnings';
 import { usePalette } from '@/hooks/use-palette';
-import { dayAndDate, hours, money, monthLabel, parseDecimal, shiftCount } from '@/lib/format';
+import { dayAndDate, hours, money, monthLabel, shiftCount } from '@/lib/format';
 import { radius, semantic } from '@/lib/theme';
 import * as time from '@/lib/time';
 import type { Profile, ShiftLog } from '@/types';
@@ -30,9 +30,6 @@ export default function ProfileScreen() {
   const { team } = useAppData();
   const earnings = useEarnings();
 
-  // Derived, not mirrored: `typedRateText` is null until the user edits, so
-  // there is no effect syncing the stored rate into state.
-  const [typedRateText, setTypedRateText] = useState<string | null>(null);
   const [editingLog, setEditingLog] = useState<ShiftLog | null>(null);
   const [armedForRemoval, setArmedForRemoval] = useState<string | null>(null);
 
@@ -60,14 +57,6 @@ export default function ProfileScreen() {
   if (!session) return null;
   const { profile, organization } = session;
 
-  const rateText =
-    typedRateText ?? (earnings.hourlyRate != null ? earnings.hourlyRate.toFixed(2).replace('.', ',') : '');
-  const typedRate = parseDecimal(rateText);
-  const rateChanged =
-    typedRate == null
-      ? rateText.length > 0
-      : earnings.hourlyRate == null || Math.abs(typedRate - earnings.hourlyRate) > 0.001;
-
   const currentMonth = earnings.months[0];
 
   return (
@@ -86,7 +75,22 @@ export default function ProfileScreen() {
             }}
           />
         }>
-        <Text style={{ fontSize: 26, fontWeight: '700', color: c.text }}>Profil</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Text style={{ flex: 1, fontSize: 26, fontWeight: '700', color: c.text }}>Profil</Text>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            hitSlop={10}
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: c.fill,
+            }}>
+            <Icon name="settings" size={18} color={c.text} />
+          </Pressable>
+        </View>
 
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
@@ -180,72 +184,6 @@ export default function ProfileScreen() {
                 tint={earnings.hourlyRate == null ? c.textSecondary : semantic.green}
               />
             </View>
-
-            <Card>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Text style={{ fontSize: 15, fontWeight: '500', color: c.text }}>
-                  Urna postavka
-                </Text>
-                <View style={{ flex: 1 }} />
-                <TextInput
-                  value={rateText}
-                  onChangeText={setTypedRateText}
-                  keyboardType="decimal-pad"
-                  placeholder="0,00"
-                  placeholderTextColor={c.textTertiary}
-                  style={{
-                    minWidth: 80,
-                    textAlign: 'right',
-                    fontSize: 16,
-                    color: c.text,
-                    paddingHorizontal: 10,
-                    paddingVertical: 7,
-                    borderRadius: radius.sm,
-                    backgroundColor: c.fill,
-                  }}
-                />
-                <Text style={{ fontSize: 15, color: c.textSecondary }}>€/h</Text>
-              </View>
-
-              {rateChanged ? (
-                <Pressable
-                  onPress={() => {
-                    if (typedRate != null) {
-                      void earnings.saveRate(typedRate, profile.id).then(() =>
-                        setTypedRateText(null),
-                      );
-                    }
-                  }}
-                  disabled={earnings.saving || typedRate == null}
-                  style={{
-                    marginTop: 10,
-                    minHeight: 40,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: radius.sm,
-                    backgroundColor: c.accent,
-                    opacity: typedRate == null ? 0.5 : 1,
-                  }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>
-                    {earnings.saving ? 'Shranjujem…' : 'Shrani postavko'}
-                  </Text>
-                </Pressable>
-              ) : null}
-
-              {earnings.error ? (
-                <View style={{ marginTop: 10 }}>
-                  <Message text={earnings.error} kind="error" />
-                </View>
-              ) : earnings.notice ? (
-                <View style={{ marginTop: 10 }}>
-                  <Message text={earnings.notice} kind="notice" />
-                </View>
-              ) : null}
-
-              <Text style={{ fontSize: 12, color: c.textTertiary, marginTop: 10 }}>
-                Postavko vidiš samo ti.
-              </Text>
-            </Card>
 
             {/* The worker's own record. Seeded from the published schedule,
                 edited only by them, read by nobody else. */}

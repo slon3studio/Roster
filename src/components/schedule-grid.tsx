@@ -264,15 +264,17 @@ export function Chip({
   const duty = schedule.dutyNameOf(shift.duty_id);
   const note = schedule.timeNoteOf(shift, organization);
 
-  // The cell already carries six colour meanings (slot, you, cover, conflict,
-  // position, adjusted time). A rotation gets a dashed edge instead of a
-  // seventh colour: the broken line reads as "agreed, not final", and it can
-  // sit on top of any of the fills without changing what they mean.
+  // Cover outranks rotation, which outranks "mine": the further a shift is
+  // from being settled, the louder it should be.
+  //
+  // A rotation is a dashed purple edge rather than a purple fill. The broken
+  // line says "agreed, not final", and leaving the fill alone means the cell
+  // still shows whether the shift is yours underneath.
   const fill = needsCover ? semantic.red + '24' : mine ? c.accentSoft : c.fill;
   const stroke = needsCover
     ? semantic.red + '73'
     : inRotation
-      ? c.accent
+      ? semantic.purple
       : mine
         ? c.accent + '73'
         : 'transparent';
@@ -307,7 +309,7 @@ export function Chip({
 
         {conflict ? <Icon name="warning" size={10} color={semantic.yellow} /> : null}
         {needsCover ? <Icon name="swap" size={10} color={semantic.red} /> : null}
-        {inRotation ? <Icon name="rotate" size={10} color={c.accent} /> : null}
+        {inRotation ? <Icon name="rotate" size={10} color={semantic.purple} /> : null}
       </View>
 
       {duty ? (

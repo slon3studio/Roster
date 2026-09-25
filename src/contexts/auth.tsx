@@ -25,6 +25,7 @@ type AuthValue = {
     organization: OrganizationChoice;
   }) => Promise<void>;
   signOut: () => Promise<void>;
+  updateFullName: (name: string) => Promise<boolean>;
   requestPasswordReset: (email: string) => Promise<boolean>;
   completePasswordReset: (args: {
     email: string;
@@ -275,7 +276,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Finishes the reset with the 6-digit code from the email.
    *
    * A deep link would be the other way, but the link in Supabase's email
-   * points at the project's Site URL, and Rotaly has no web page to land on —
+   * points at the project's Site URL, and Rotera has no web page to land on —
    * so the emailed link went to localhost and died. A code needs no web page,
    * no URL allow-list and no custom scheme, which also means it works
    * unchanged in Expo Go.
@@ -334,6 +335,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [clearMessages, reload],
   );
 
+  /**
+   * Renames the signed-in person.
+   *
+   * Nothing new was needed in the database: migration 0001 already grants
+   * `update (full_name)` on `profiles` and only for your own row. That column
+   * grant is also why this cannot touch `role` — a worker writing
+   * `role = 'manager'` is refused by Postgres, not by this code.
+   */
+  const updateFullName = useCallback(
+    async (name: string) => {
+      clearMessages();
+      const trimmed = name.trim().replace(/\s+/g, ' ');
+
+      if (trimmed.length < 2) {
+        setError('Vpiši svoje ime.');
+        return false;
+      }
+      if (trimmed.length > 80) {
+        setError('Ime je predolgo.');
+        return false;
+      }
+
+      setBusy(true);
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+
+      if (!uid) {
+        setBusy(false);
+        setError('Seja je potekla. Prijavi se znova.');
+        return false;
+      }
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ full_name: trimmed })
+        .eq('id', uid);
+      setBusy(false);
+
+      if (updateError) {
+        setError(slovenian(updateError.message));
+        return false;
+      }
+
+      setNotice('Ime je shranjeno.');
+      // The name is on the session object, which every screen reads from.
+      await reload();
+      return true;
+    },
+    [clearMessages, reload],
+  );
+
   const value = useMemo<AuthValue>(
     () => ({
       status,
@@ -346,6 +398,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signUp,
       signOut,
+      updateFullName,
       requestPasswordReset,
       completePasswordReset,
       reload,
@@ -360,6 +413,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signUp,
       signOut,
+      updateFullName,
       requestPasswordReset,
       completePasswordReset,
       reload,

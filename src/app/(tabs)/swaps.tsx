@@ -183,7 +183,7 @@ export default function SwapsScreen() {
       <View key={swap.id} style={{ position: 'relative' }}>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <KindPill label="ROTACIJA" tint={c.accent} />
+            <KindPill label="ROTACIJA" tint={semantic.purple} />
             <View style={{ flex: 1 }} />
             <Text style={{ fontSize: 10, fontWeight: '600', color: c.textSecondary }}>
               {swapStatusLabel[swap.status]}
@@ -193,7 +193,7 @@ export default function SwapsScreen() {
           <View style={{ gap: 8, marginTop: 12 }}>
             {swapSide(swap.requester_id, swap.requester_shift_id)}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-              <Icon name="rotate" size={13} color={c.accent} />
+              <Icon name="rotate" size={13} color={semantic.purple} />
               <Text style={{ fontSize: 11, color: c.textSecondary }}>zamenjata smeni</Text>
             </View>
             {swapSide(swap.target_id, swap.target_shift_id)}
@@ -230,7 +230,7 @@ export default function SwapsScreen() {
             bottom: 14,
             width: 4,
             borderRadius: 2,
-            backgroundColor: involvesMe ? c.accent : c.border,
+            backgroundColor: involvesMe ? semantic.purple : c.border,
           }}
         />
       </View>

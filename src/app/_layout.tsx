@@ -1,17 +1,28 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { ActivityIndicator, Text, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { AuthProvider, useAuth } from '@/contexts/auth';
+import { AppThemeProvider, useAppTheme } from '@/contexts/theme';
 import { usePalette } from '@/hooks/use-palette';
 import { semantic } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const scheme = useColorScheme();
+  // AppThemeProvider wraps everything, including the loading and
+  // misconfigured screens — they call usePalette too.
+  return (
+    <AppThemeProvider>
+      <Themed />
+    </AppThemeProvider>
+  );
+}
+
+function Themed() {
+  const { scheme } = useAppTheme();
 
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -51,6 +62,7 @@ function Gate() {
       <Stack.Protected guard={signedIn}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="catalog" />
+        <Stack.Screen name="settings" />
       </Stack.Protected>
     </Stack>
   );

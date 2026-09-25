@@ -40,6 +40,9 @@ const ICONS = {
   code: { ios: 'number', android: 'numbers', ion: 'keypad-outline' },
   rotate: { ios: 'arrow.2.squarepath', android: 'sync_alt', ion: 'repeat' },
   copy: { ios: 'doc.on.doc', android: 'content_copy', ion: 'copy-outline' },
+  settings: { ios: 'gearshape', android: 'settings', ion: 'settings-outline' },
+  chevronLeft: { ios: 'chevron.left', android: 'arrow_back_ios', ion: 'chevron-back' },
+  chevronRight: { ios: 'chevron.right', android: 'chevron_right', ion: 'chevron-forward' },
 } as const;
 
 export type IconName = keyof typeof ICONS;

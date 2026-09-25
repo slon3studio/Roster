@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Rotaly",
-    "slug": "rotaly",
+    "name": "Rotera",
+    "slug": "rotera",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "rotaly",
+    "scheme": "rotera",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.rotaly.app",
+      "bundleIdentifier": "com.rotera.app",
       "supportsTablet": false
     },
     "android": {
-      "package": "com.rotaly.app",
+      "package": "com.rotera.app",
       "adaptiveIcon": {
         "backgroundImage": "./assets/images/android-icon-background.png",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -21,7 +21,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -29,9 +29,13 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#857ADE",
+          "backgroundColor": "#FFFFFF",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 120
+          "imageWidth": 140,
+          "dark": {
+            "backgroundColor": "#000000",
+            "image": "./assets/images/splash-icon.png"
+          }
         }
       ],
       "expo-sqlite",

@@ -113,6 +113,14 @@ Web-only pieces, and nothing else:
 | `public/icons/` | 192/512/maskable for Android, 180 for the iOS home screen. |
 | `src/components/ui/time-field.web.tsx` | `@react-native-community/datetimepicker` has no web build. Metro picks this file on web by extension; the native `time-field.tsx` is untouched. |
 
+`vercel.json` carries the two things a static host has to be told: rewrite
+every path to `/index.html` (only that file exists on disk — expo-router
+resolves `/catalog` and the tabs in the browser, so without the rewrite a
+refresh 404s), and never cache `sw.js` (a cached service worker outlives the
+deploy that replaced it). Keep it free of `comment` keys: Vercel validates
+`rewrites` and `headers` strictly and rejects the whole deployment over an
+unknown property.
+
 `app.json` sets `web.output: "single"` — a client-rendered SPA. `"static"`
 pre-renders every route in Node, where `localStorage` does not exist, and the
 Supabase client reads it at module load; that is why `src/lib/supabase.ts`

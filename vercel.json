@@ -2,21 +2,13 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npx expo export --platform web --output-dir dist",
   "outputDirectory": "dist",
-  "rewrites": [
-    {
-      "comment": "The app is a client-rendered SPA: only /index.html exists on disk, and expo-router resolves /catalog and the tab routes in the browser. Without this, opening or refreshing any address other than / returns 404. Vercel serves real files first, so /sw.js, /manifest.json and /_expo/... are unaffected.",
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {
-      "comment": "A cached service worker outlives the deploy that replaced it, which is how people end up running last week's app.",
       "source": "/sw.js",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     },
     {
-      "comment": "Bundle filenames contain a content hash, so a new build is a new name and these can be cached hard.",
       "source": "/_expo/static/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     }

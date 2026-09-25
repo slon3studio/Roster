@@ -85,13 +85,25 @@ export default function SwapsScreen() {
   const incomingSwaps = swaps.incoming(me);
   const mySwaps = swaps.mine(me);
 
+  /**
+   * What sets your own rows apart from everybody else's.
+   *
+   * A left stripe alone was too quiet — on a screen of near-identical cards
+   * the eye needs the whole card to change, not four pixels of it. The tinted
+   * border plus the MOJA pill means you can find your own at a glance without
+   * reading a single name.
+   */
+  const mineCard = (mine: boolean) =>
+    mine ? { borderColor: c.accent + '80', backgroundColor: c.accentSoft } : undefined;
+
   const card = (request: CoverRequest, actions: React.ReactNode) => {
     const shift = schedule.shiftById(request.shift_id);
-    const isMine = request.requested_by === me;
+    // "Mine" is either side of it: the one who asked, or the one who took it.
+    const isMine = request.requested_by === me || request.claimed_by === me;
 
     return (
       <View key={request.id} style={{ position: 'relative' }}>
-        <Card>
+        <Card style={mineCard(isMine)}>
           <View
             style={{
               flexDirection: 'row',
@@ -100,6 +112,7 @@ export default function SwapsScreen() {
               marginBottom: 12,
             }}>
             <KindPill label="MENJAVA" tint={statusTint(request.status)} />
+            {isMine ? <KindPill label="MOJA" tint={c.accent} /> : null}
             <View style={{ flex: 1 }} />
             <StatusPill status={request.status} />
           </View>
@@ -162,9 +175,9 @@ export default function SwapsScreen() {
             left: 1,
             top: 14,
             bottom: 14,
-            width: 4,
             borderRadius: 2,
-            backgroundColor: isMine ? c.accent : statusTint(request.status),
+            width: 4,
+            backgroundColor: statusTint(request.status),
           }}
         />
       </View>
@@ -181,9 +194,10 @@ export default function SwapsScreen() {
 
     return (
       <View key={swap.id} style={{ position: 'relative' }}>
-        <Card>
+        <Card style={mineCard(involvesMe)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <KindPill label="ROTACIJA" tint={semantic.purple} />
+            {involvesMe ? <KindPill label="MOJA" tint={c.accent} /> : null}
             <View style={{ flex: 1 }} />
             <Text style={{ fontSize: 10, fontWeight: '600', color: c.textSecondary }}>
               {swapStatusLabel[swap.status]}
@@ -228,9 +242,9 @@ export default function SwapsScreen() {
             left: 1,
             top: 14,
             bottom: 14,
-            width: 4,
             borderRadius: 2,
-            backgroundColor: involvesMe ? semantic.purple : c.border,
+            width: 4,
+            backgroundColor: semantic.purple,
           }}
         />
       </View>

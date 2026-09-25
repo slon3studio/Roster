@@ -1,4 +1,5 @@
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, Text, View, type DimensionValue } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePalette } from '@/hooks/use-palette';
 import { radius } from '@/lib/theme';
@@ -27,6 +28,17 @@ export function Sheet({
   children: React.ReactNode;
 }) {
   const c = usePalette();
+  const insets = useSafeAreaInsets();
+
+  // A sheet opens over the whole screen, so its header lands under the notch
+  // and the clock unless it is pushed down. On web the inset has to come from
+  // CSS: expo-router hands SafeAreaProvider a hard zero there, so
+  // `insets.top` is always 0 in the browser and in the installed app — which
+  // is how Prekliči ended up behind the status bar and unreachable.
+  const headerTop: DimensionValue =
+    Platform.OS === 'web'
+      ? ('calc(14px + env(safe-area-inset-top, 0px))' as unknown as DimensionValue)
+      : 14 + insets.top;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -36,7 +48,7 @@ export function Sheet({
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 16,
-            paddingTop: 18,
+            paddingTop: headerTop,
             paddingBottom: 12,
             borderBottomWidth: 1,
             borderBottomColor: c.border,
@@ -68,7 +80,14 @@ export function Sheet({
         </View>
 
         <ScrollView
-          contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}
+          contentContainerStyle={{
+            padding: 16,
+            gap: 16,
+            paddingBottom:
+              Platform.OS === 'web'
+                ? ('calc(40px + env(safe-area-inset-bottom, 0px))' as unknown as DimensionValue)
+                : 40 + insets.bottom,
+          }}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled">
           {children}

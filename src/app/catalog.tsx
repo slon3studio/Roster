@@ -2,8 +2,9 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 
-import { Sheet, SheetFootnote, SheetRow } from '@/components/sheet';
+import { DestructiveButton, Sheet, SheetFootnote, SheetRow } from '@/components/sheet';
 import { Message } from '@/components/ui/auth-parts';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AppBackground, Card, EmptyHint, PositionBadge, SectionTitle } from '@/components/ui/design';
 import { useCatalog } from '@/hooks/use-catalog';
 import { usePalette } from '@/hooks/use-palette';
@@ -141,6 +142,11 @@ export default function CatalogScreen() {
         <PositionSheet
           key={editingPosition?.id ?? 'new-position'}
           position={editingPosition}
+          uses={editingPosition ? catalog.usesOf(editingPosition.id) : 0}
+          onDelete={() => {
+            if (editingPosition) void catalog.deletePosition(editingPosition.id);
+            setEditingPosition(null);
+          }}
           onClose={() => {
             setEditingPosition(null);
             setAddingPosition(false);
@@ -159,6 +165,11 @@ export default function CatalogScreen() {
         <DutySheet
           key={editingDuty?.id ?? 'new-duty'}
           duty={editingDuty}
+          uses={editingDuty ? catalog.usesOf(editingDuty.id) : 0}
+          onDelete={() => {
+            if (editingDuty) void catalog.deleteDuty(editingDuty.id);
+            setEditingDuty(null);
+          }}
           onClose={() => {
             setEditingDuty(null);
             setAddingDuty(false);
@@ -202,9 +213,13 @@ const PALETTE = [
 
 function PositionSheet({
   position,
+  uses,
   onClose,
   onSave,
+  onDelete,
 }: {
+  uses: number | null;
+  onDelete: () => void;
   position: Position | null;
   onClose: () => void;
   onSave: (name: string, shortLabel: string, color: string, isActive: boolean) => void;
@@ -302,6 +317,14 @@ function PositionSheet({
             </SheetRow>
           </Card>
           <SheetFootnote text="Izklopljeno delovno mesto se ne pojavi več pri oddaji želja in pri razporejanju. Obstoječi vnosi ostanejo." />
+
+          <RemoveRow
+            uses={uses}
+            usedText={`Uporabljeno je v ${uses} smenah in željah, zato ga ni mogoče izbrisati — lahko ga samo izklopiš zgoraj.`}
+            label="Izbriši delovno mesto"
+            confirmTitle={`Izbrišem "${position.name}"?`}
+            onDelete={onDelete}
+          />
         </>
       ) : null}
     </Sheet>
@@ -310,9 +333,13 @@ function PositionSheet({
 
 function DutySheet({
   duty,
+  uses,
   onClose,
   onSave,
+  onDelete,
 }: {
+  uses: number | null;
+  onDelete: () => void;
   duty: Duty | null;
   onClose: () => void;
   onSave: (name: string, isActive: boolean) => void;
@@ -350,8 +377,69 @@ function DutySheet({
             </SheetRow>
           </Card>
           <SheetFootnote text="Izklopljena zadolžitev se ne pojavi več pri razporejanju. Obstoječi vnosi ostanejo." />
+
+          <RemoveRow
+            uses={uses}
+            usedText={`Uporabljena je v ${uses} smenah, zato je ni mogoče izbrisati — lahko jo samo izklopiš zgoraj.`}
+            label="Izbriši zadolžitev"
+            confirmTitle={`Izbrišem "${duty.name}"?`}
+            onDelete={onDelete}
+          />
         </>
       ) : null}
     </Sheet>
+  );
+}
+
+/**
+ * Delete, or the reason there is no delete.
+ *
+ * Both foreign keys are `on delete set null`, so removing an entry that shifts
+ * point at would silently blank them rather than fail. Migration 0016 refuses
+ * that in the database; this says so before the button is pressed, because a
+ * button that always errors is worse than no button.
+ */
+function RemoveRow({
+  uses,
+  usedText,
+  label,
+  confirmTitle,
+  onDelete,
+}: {
+  uses: number | null;
+  usedText: string;
+  label: string;
+  confirmTitle: string;
+  onDelete: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  // Unknown is not zero. Without the count the only honest thing is to not
+  // offer the button at all.
+  if (uses === null) {
+    return (
+      <SheetFootnote text="Brisanje ni na voljo: v Supabase poženi migracijo 0016_catalog_delete.sql." />
+    );
+  }
+  if (uses > 0) return <SheetFootnote text={usedText} />;
+
+  return (
+    <>
+      <DestructiveButton title={label} onPress={() => setConfirming(true)} />
+      <SheetFootnote text="Nič se ne sklicuje nanj, zato je izbris varen." />
+
+      <ConfirmDialog
+        visible={confirming}
+        title={confirmTitle}
+        message="Tega ni mogoče razveljaviti."
+        confirmLabel="Izbriši"
+        destructive
+        onConfirm={() => {
+          setConfirming(false);
+          onDelete();
+        }}
+        onCancel={() => setConfirming(false)}
+      />
+    </>
   );
 }

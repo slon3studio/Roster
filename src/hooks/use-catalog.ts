@@ -6,8 +6,13 @@ import type { Duty, Position } from '@/types';
 /**
  * A manager curating their own restaurant's positions and duties.
  *
- * Nothing is ever deleted: `is_active = false` hides a row while the shifts and
- * wishes referencing it keep making sense.
+ * Two ways to retire an entry, and the difference matters. `is_active = false`
+ * hides it while every shift and wish pointing at it keeps making sense.
+ * Deleting removes it for good, and is only possible while nothing references
+ * it — both foreign keys are `on delete set null`, so deleting a used position
+ * would quietly blank who worked the bar last month. Migration 0016 refuses
+ * that in a trigger; `usage` below is what lets the screen say so up front
+ * instead of offering a button that fails.
  */
 export function useCatalog() {
   const [positions, setPositions] = useState<Position[]>([]);
@@ -16,13 +21,17 @@ export function useCatalog() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** Catalog entry id → how many shifts and wishes point at it. `null` while
+   *  the count is unknown, which is not the same as zero. */
+  const [usage, setUsage] = useState<Record<string, number> | null>(null);
 
   /** Loads inactive rows too — this is the screen where you bring one back. */
   const load = useCallback(async () => {
     setLoading(true);
-    const [positionsResult, dutiesResult] = await Promise.all([
+    const [positionsResult, dutiesResult, usageResult] = await Promise.all([
       supabase.from('positions').select('*').order('sort_order', { ascending: true }),
       supabase.from('duties').select('*').order('sort_order', { ascending: true }),
+      supabase.rpc('catalog_usage'),
     ]);
     setLoading(false);
 
@@ -32,6 +41,17 @@ export function useCatalog() {
     }
     setPositions((positionsResult.data ?? []) as Position[]);
     setDuties((dutiesResult.data ?? []) as Duty[]);
+
+    // A missing migration must not take the whole screen down with it — but it
+    // must not read as "nothing uses this" either, or the screen would offer
+    // to delete a position that half the schedule points at. Unknown stays
+    // unknown, and the delete button stays hidden.
+    if (usageResult.error) {
+      setUsage(null);
+      return;
+    }
+    const rows = (usageResult.data ?? []) as { id: string; uses: number }[];
+    setUsage(Object.fromEntries(rows.map((row) => [row.id, Number(row.uses)])));
   }, []);
 
   const run = useCallback(
@@ -74,6 +94,9 @@ export function useCatalog() {
     error,
     notice,
     load,
+
+    /** How many shifts and wishes point at this entry, or `null` if unknown. */
+    usesOf: (id: string): number | null => (usage ? (usage[id] ?? 0) : null),
     clearMessages: () => {
       setError(null);
       setNotice(null);
@@ -122,6 +145,12 @@ export function useCatalog() {
           }),
         'Zadolžitev je dodana.',
       ),
+
+    deletePosition: (id: string) =>
+      run(() => supabase.from('positions').delete().eq('id', id), 'Delovno mesto je izbrisano.'),
+
+    deleteDuty: (id: string) =>
+      run(() => supabase.from('duties').delete().eq('id', id), 'Zadolžitev je izbrisana.'),
 
     updateDuty: (id: string, name: string, isActive: boolean) =>
       run(

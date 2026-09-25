@@ -34,6 +34,16 @@
       body {
         height: 100%;
       }
+      /* iOS Safari counts `100%` as the height with the toolbars hidden, so
+         the app ended up taller than the visible area and its bottom edge —
+         tab bar included — fell below the fold, unreachable by scrolling.
+         `dvh` tracks the height that is actually on screen right now. */
+      @supports (height: 100dvh) {
+        html,
+        body {
+          height: 100dvh;
+        }
+      }
       body {
         overflow: hidden;
         /* Without this the page is white for the moment before React paints,
@@ -49,14 +59,7 @@
         display: flex;
         height: 100%;
         flex: 1;
-        /* Installed on iOS the app draws behind the home indicator, because
-           viewport-fit=cover is what removes the browser's own bars. Without
-           reserving that strip the tab bar is pushed under it and the bottom
-           of the schedule is cut off. border-box keeps the padding inside the
-           100%, and the 0px fallback means devices with no inset are
-           unaffected. */
         box-sizing: border-box;
-        padding-bottom: env(safe-area-inset-bottom, 0px);
       }
       /* A phone app does not let you select the interface by dragging, and
            does not bounce the whole page. Inputs keep both. */

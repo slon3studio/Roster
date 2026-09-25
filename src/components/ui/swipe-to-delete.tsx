@@ -1,25 +1,30 @@
 import { useCallback, useState } from 'react';
-import { Animated, PanResponder, Pressable, Text, View } from 'react-native';
+import { Animated, PanResponder, Pressable, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { usePalette } from '@/hooks/use-palette';
 import { radius, semantic } from '@/lib/theme';
 
-const ACTION_WIDTH = 92;
-/** How far you have to pull before letting go leaves it open. */
-const OPEN_THRESHOLD = ACTION_WIDTH / 2;
+/** How far you drag to bring the button all the way in. */
+const TRAVEL = 58;
+const CIRCLE = 38;
+const OPEN_THRESHOLD = TRAVEL / 2;
 
 /**
- * Drag a row left to uncover a delete button on the right.
+ * Drag a row left to bring in a round delete button on the right.
+ *
+ * The row itself does not move — only the button slides in over its trailing
+ * end. Translating the whole row is the usual way to do this, and was the
+ * first attempt here, but a short label like "kolo" starts near the left edge
+ * and a 58px shift carries it out of sight: you end up deleting something you
+ * can no longer read. Holding the row still and animating the button costs
+ * nothing and keeps the name on screen.
  *
  * Built on `PanResponder` rather than `react-native-gesture-handler`'s
  * `Swipeable`: this version of the library ships only the legacy one, which
  * wants a `GestureHandlerRootView` above the whole app. PanResponder is part
- * of React Native, works through react-native-web with a mouse as well as a
- * finger, and needs nothing added at the root.
- *
- * The row only claims the gesture once the drag is clearly horizontal, so
- * scrolling a long list still works.
+ * of React Native and works through react-native-web with a mouse as well as
+ * a finger.
  */
 export function SwipeToDelete({
   children,
@@ -32,32 +37,31 @@ export function SwipeToDelete({
 }) {
   const c = usePalette();
 
-  // In state, not a ref: it has to be created exactly once and read while
-  // rendering, and the React Compiler rules forbid touching `ref.current`
-  // during render.
-  const [translateX] = useState(() => new Animated.Value(0));
+  // In state, not a ref: created once and read while rendering, which the
+  // React Compiler rules forbid doing to `ref.current`.
+  // 0 = fully hidden off to the right, 1 = fully in.
+  const [progress] = useState(() => new Animated.Value(0));
   const [open, setOpen] = useState(false);
 
   const settle = useCallback(
-    (to: number) => {
-      setOpen(to !== 0);
-      Animated.spring(translateX, {
+    (to: 0 | 1) => {
+      setOpen(to === 1);
+      Animated.spring(progress, {
         toValue: to,
         useNativeDriver: true,
         bounciness: 0,
         speed: 18,
       }).start();
     },
-    [translateX],
+    [progress],
   );
 
   const [responder] = useState(() => {
-    // Where the row rested when this drag started. A plain closure variable
-    // rather than a React ref — the gesture is the only thing that reads it,
-    // and a ref would be render-state the compiler rightly objects to.
-    let base = 0;
+    // Where the button rested when this drag started. A closure variable, not
+    // a React ref: only the gesture ever touches it.
+    let base: 0 | 1 = 0;
 
-    const close = (to: number) => {
+    const close = (to: 0 | 1) => {
       base = to;
       settle(to);
     };
@@ -69,15 +73,15 @@ export function SwipeToDelete({
         Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
 
       onPanResponderMove: (_, g) => {
-        // Left only, and never further than the button is wide.
-        translateX.setValue(Math.max(-ACTION_WIDTH, Math.min(0, base + g.dx)));
+        // Dragging left is positive progress; never past either end.
+        progress.setValue(Math.max(0, Math.min(1, base + -g.dx / TRAVEL)));
       },
 
       onPanResponderRelease: (_, g) => {
         // A flick counts even when it did not travel far.
-        if (g.vx < -0.5) return close(-ACTION_WIDTH);
+        if (g.vx < -0.5) return close(1);
         if (g.vx > 0.5) return close(0);
-        close(base + g.dx < -OPEN_THRESHOLD ? -ACTION_WIDTH : 0);
+        close(-g.dx + base * TRAVEL > OPEN_THRESHOLD ? 1 : 0);
       },
 
       onPanResponderTerminate: () => close(base),
@@ -86,59 +90,69 @@ export function SwipeToDelete({
 
   return (
     <View
+      {...responder.panHandlers}
       style={{
         position: 'relative',
         overflow: 'hidden',
         borderRadius: radius.sm,
-        // The revealed button needs room for its icon and label, and 44 is the
-        // smallest comfortable touch target anyway. Without it a short row
-        // clipped the word off the bottom of the button.
+        // 44 is the smallest comfortable touch target, and it gives the circle
+        // room without touching the rows above and below.
         minHeight: 44,
+        justifyContent: 'center',
+        backgroundColor: c.card,
       }}>
-      {/* Sits underneath, uncovered by the row sliding off it. */}
-      <View
+      {children}
+
+      {/* Slides in over the row's trailing end, where only the chevron sits.
+          Untouchable until it is actually in, so a closed row cannot be
+          deleted by a stray tap near its right edge. */}
+      <Animated.View
+        pointerEvents={open ? 'auto' : 'none'}
         style={{
           position: 'absolute',
           right: 0,
           top: 0,
           bottom: 0,
-          width: ACTION_WIDTH,
-          backgroundColor: semantic.red,
-          // Matches the container's own corners. A transformed sibling is not
-          // always clipped to a rounded parent the same way an untransformed
-          // one is, and a square red corner peeking past the row is the
-          // artefact that causes.
-          borderTopRightRadius: radius.sm,
-          borderBottomRightRadius: radius.sm,
+          width: TRAVEL,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: c.card,
+          opacity: progress,
+          transform: [
+            {
+              translateX: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [TRAVEL, 0],
+              }),
+            },
+          ],
         }}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={accessibilityLabel}
           onPress={onDelete}
-          style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-          <Icon name="trash" size={19} color="#fff" />
-          <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>Izbriši</Text>
+          hitSlop={8}
+          style={({ pressed }) => ({
+            width: CIRCLE,
+            height: CIRCLE,
+            borderRadius: CIRCLE / 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: semantic.red,
+            opacity: pressed ? 0.75 : 1,
+          })}>
+          <Icon name="trash" size={18} color="#fff" />
         </Pressable>
-      </View>
-
-      <Animated.View
-        {...responder.panHandlers}
-        style={{
-          transform: [{ translateX }],
-          backgroundColor: c.card,
-          minHeight: 44,
-          justifyContent: 'center',
-        }}>
-        {/* While it is open, a tap anywhere on the row closes it instead of
-            opening whatever the row would normally open. */}
-        {open ? (
-          <Pressable onPress={() => settle(0)} style={{ width: '100%' }}>
-            <View pointerEvents="none">{children}</View>
-          </Pressable>
-        ) : (
-          children
-        )}
       </Animated.View>
+
+      {/* While it is open, a tap anywhere else on the row closes it rather
+          than opening whatever the row would normally open. */}
+      {open ? (
+        <Pressable
+          onPress={() => settle(0)}
+          style={{ position: 'absolute', left: 0, top: 0, bottom: 0, right: TRAVEL }}
+        />
+      ) : null}
     </View>
   );
 }

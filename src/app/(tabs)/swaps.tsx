@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
+import { useTabBarSpace } from '@/components/ui/tab-bar';
 import { Message } from '@/components/ui/auth-parts';
 import {
   AppBackground,
@@ -24,6 +25,7 @@ import { coverStatusLabel, slotLabel, swapStatusLabel } from '@/types';
 
 export default function SwapsScreen() {
   const c = usePalette();
+  const tabBarSpace = useTabBarSpace();
   const { session } = useAuth();
   const { team, cover, swaps } = useAppData();
   const schedule = useSchedule();
@@ -279,7 +281,7 @@ export default function SwapsScreen() {
       <AppBackground />
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingTop: 56, gap: 14, paddingBottom: 32 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 56, gap: 14, paddingBottom: tabBarSpace }}
         refreshControl={<RefreshControl refreshing={cover.loading} onRefresh={refresh} />}>
         <Text style={{ fontSize: 26, fontWeight: '700', color: c.text }}>Menjave</Text>
 

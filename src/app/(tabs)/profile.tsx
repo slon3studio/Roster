@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
+import { useTabBarSpace } from '@/components/ui/tab-bar';
 import { Icon } from '@/components/ui/icon';
 import { JoinCode } from '@/components/ui/join-code';
 import { ShiftLogEditorSheet } from '@/components/shift-sheets';
@@ -26,6 +27,7 @@ import type { Profile, ShiftLog } from '@/types';
 
 export default function ProfileScreen() {
   const c = usePalette();
+  const tabBarSpace = useTabBarSpace();
   const { session, signOut, busy } = useAuth();
   const { team } = useAppData();
   const earnings = useEarnings();
@@ -64,7 +66,7 @@ export default function ProfileScreen() {
       <AppBackground />
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingTop: 56, gap: 16, paddingBottom: 32 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 56, gap: 16, paddingBottom: tabBarSpace }}
         keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
+import { useTabBarSpace } from '@/components/ui/tab-bar';
 import { Icon } from '@/components/ui/icon';
 import { Message, PrimaryButton } from '@/components/ui/auth-parts';
 import {
@@ -32,6 +33,7 @@ export default function WishesScreen() {
 /** Worker: mark what you can work each day, and for which position. */
 function WorkerWishes() {
   const c = usePalette();
+  const tabBarSpace = useTabBarSpace();
   const { session } = useAuth();
   const availability = useAvailability();
 
@@ -87,7 +89,7 @@ function WorkerWishes() {
       <AppBackground />
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingTop: 56, gap: 14, paddingBottom: 32 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 56, gap: 14, paddingBottom: tabBarSpace }}
         refreshControl={
           <RefreshControl refreshing={availability.loading} onRefresh={() => void reload(weekStart)} />
         }>
@@ -207,6 +209,7 @@ function WorkerWishes() {
 /** Manager: who is available, per day, per slot. The raw material. */
 function ManagerWishes() {
   const c = usePalette();
+  const tabBarSpace = useTabBarSpace();
   const { team } = useAppData();
   const availability = useAvailability();
   const [weekStart, setWeekStart] = useState(defaultWeek());
@@ -229,7 +232,7 @@ function ManagerWishes() {
       <AppBackground />
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingTop: 56, gap: 14, paddingBottom: 32 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 56, gap: 14, paddingBottom: tabBarSpace }}
         refreshControl={
           <RefreshControl
             refreshing={availability.loading}

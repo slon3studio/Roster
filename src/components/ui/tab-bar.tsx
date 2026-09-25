@@ -10,22 +10,41 @@ import { radius, semantic } from '@/lib/theme';
 /**
  * The tab bar, written by hand rather than configured.
  *
- * Two reasons the stock one could not do this:
+ * Three reasons the stock one could not do this:
  *
- * 1. The selected tab has to read as one button around both the icon and the
- *    label, the way the Xcode app had it. The stock bar renders icon and label
- *    as separate pieces with no shared container to put a border on.
+ * 1. It floats over the content, the way the Xcode app's did — a capsule inset
+ *    from all three edges with the schedule visible around it.
  *
- * 2. The home-indicator strip. `expo-router` hands `SafeAreaProvider` a hard
+ * 2. The selected tab reads as one button around both the icon and the label.
+ *    The stock bar renders those as separate pieces with no shared container
+ *    to put a fill or a border on.
+ *
+ * 3. The home-indicator strip. `expo-router` hands `SafeAreaProvider` a hard
  *    `insets: { bottom: 0 }` on web, so `useSafeAreaInsets()` can never report
- *    it there and the stock bar has nothing to pad with — which is why the
- *    installed app kept sitting under the indicator. Here the web path reads
- *    `env(safe-area-inset-bottom)` straight from CSS instead, and the bar's own
- *    background fills the strip rather than leaving a black band under it.
+ *    it there and the stock bar has nothing to pad with. The web path below
+ *    reads `env(safe-area-inset-bottom)` from CSS instead.
  *
- * Kept in normal flow, not floating, so the screen above can never be
- * overlapped: whatever height this ends up, the scroll view gets the rest.
+ * Because it floats, it no longer takes space out of the screen above it —
+ * every scrolling screen has to reserve that space itself with
+ * `useTabBarSpace()`. That is the one thing to remember when adding a screen.
  */
+
+const BAR_HEIGHT = 66;
+const BAR_INSET = 12;
+
+/**
+ * Bottom padding a scrolling screen needs so its last row clears the bar.
+ *
+ * Exported as a hook rather than a constant because the home-indicator strip
+ * is a runtime value, and it arrives by a different route on each platform.
+ */
+export function useTabBarSpace(): DimensionValue {
+  const insets = useSafeAreaInsets();
+
+  return Platform.OS === 'web'
+    ? (`calc(${BAR_HEIGHT + BAR_INSET * 2}px + env(safe-area-inset-bottom, 0px))` as unknown as DimensionValue)
+    : BAR_HEIGHT + BAR_INSET * 2 + insets.bottom;
+}
 
 const TABS: { name: string; label: string; icon: IconName }[] = [
   { name: 'index', label: 'Urnik', icon: 'schedule' },
@@ -34,8 +53,6 @@ const TABS: { name: string; label: string; icon: IconName }[] = [
   { name: 'profile', label: 'Profil', icon: 'profile' },
 ];
 
-/** Exactly what the navigator passes its `tabBar`, so this cannot drift out
- *  of step with the version of expo-router in use. */
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
 type Props = TabBarProps & {
@@ -47,22 +64,33 @@ export function TabBar({ state, navigation, badges }: Props) {
   const c = usePalette();
   const insets = useSafeAreaInsets();
 
-  // On native the inset is a real measurement; on web it has to come from CSS.
-  const bottomPadding: DimensionValue =
+  const bottom: DimensionValue =
     Platform.OS === 'web'
-      ? ('calc(10px + env(safe-area-inset-bottom, 0px))' as unknown as DimensionValue)
-      : 10 + insets.bottom;
+      ? (`calc(${BAR_INSET}px + env(safe-area-inset-bottom, 0px))` as unknown as DimensionValue)
+      : BAR_INSET + insets.bottom;
 
   return (
     <View
       style={{
+        position: 'absolute',
+        left: BAR_INSET,
+        right: BAR_INSET,
+        bottom,
+        height: BAR_HEIGHT,
         flexDirection: 'row',
-        paddingTop: 10,
-        paddingBottom: bottomPadding,
-        paddingHorizontal: 8,
+        alignItems: 'center',
+        paddingHorizontal: 6,
+        borderRadius: BAR_HEIGHT / 2,
         backgroundColor: c.card,
-        borderTopWidth: 1,
-        borderTopColor: c.border,
+        borderWidth: 1,
+        borderColor: c.border,
+        // The lift is what makes it read as floating rather than as a panel
+        // that happens to have rounded corners.
+        shadowColor: '#000',
+        shadowOpacity: 0.28,
+        shadowRadius: 18,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 12,
       }}>
       {state.routes.map((route, index) => {
         const tab = TABS.find((t) => t.name === route.name);
@@ -91,20 +119,24 @@ export function TabBar({ state, navigation, badges }: Props) {
             <View
               style={{
                 alignItems: 'center',
-                gap: 3,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: radius.md,
-                borderWidth: 1.5,
-                // Transparent rather than absent, so selecting a tab does not
-                // change its size and shift the row.
-                borderColor: focused ? c.accent : 'transparent',
-                backgroundColor: focused ? c.accentSoft : 'transparent',
+                gap: 1,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: radius.pill,
+                backgroundColor: focused ? c.fill : 'transparent',
               }}>
-              <View>
+              <View
+                style={{
+                  width: 30,
+                  height: 26,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: focused ? c.accentSoft : 'transparent',
+                }}>
                 <Icon
                   name={tab.icon}
-                  size={22}
+                  size={20}
                   color={focused ? c.accent : c.textSecondary}
                   weight={focused ? 'semibold' : 'regular'}
                 />
@@ -113,17 +145,17 @@ export function TabBar({ state, navigation, badges }: Props) {
                   <View
                     style={{
                       position: 'absolute',
-                      top: -5,
-                      right: -11,
-                      minWidth: 17,
-                      height: 17,
+                      top: -3,
+                      right: -7,
+                      minWidth: 16,
+                      height: 16,
                       paddingHorizontal: 4,
                       borderRadius: radius.pill,
                       backgroundColor: semantic.red,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>
+                    <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>
                       {badge > 9 ? '9+' : badge}
                     </Text>
                   </View>
@@ -133,7 +165,7 @@ export function TabBar({ state, navigation, badges }: Props) {
               <Text
                 numberOfLines={1}
                 style={{
-                  fontSize: 11,
+                  fontSize: 10.5,
                   fontWeight: focused ? '700' : '500',
                   color: focused ? c.accent : c.textSecondary,
                 }}>

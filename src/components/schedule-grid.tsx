@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { useTabBarSpace } from '@/components/ui/tab-bar';
 import { Icon } from '@/components/ui/icon';
 import { PositionBadge } from '@/components/ui/design';
 import type { ScheduleHook } from '@/hooks/use-schedule';
@@ -60,12 +61,13 @@ function slotColor(slot: ShiftSlot) {
  */
 export function ScheduleGrid(props: GridProps) {
   const c = usePalette();
+  const tabBarSpace = useTabBarSpace();
   const { organization, schedule, editing } = props;
 
   const rows = (slot: ShiftSlot) => schedule.rowCount(slot, 1) + (editing ? 1 : 0);
 
   return (
-    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 28 }}>
+    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: tabBarSpace }}>
       <View
         style={{
           flexDirection: 'row',

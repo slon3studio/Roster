@@ -1,5 +1,6 @@
 import { ScrollView, Text, View } from 'react-native';
 
+import { useTabBarSpace } from '@/components/ui/tab-bar';
 import { Cell, type GridProps } from '@/components/schedule-grid';
 import { usePalette } from '@/hooks/use-palette';
 import { radius, semantic } from '@/lib/theme';
@@ -25,6 +26,7 @@ function slotColor(slot: ShiftSlot) {
  */
 export function ScheduleDayGrid(props: GridProps) {
   const c = usePalette();
+  const tabBarSpace = useTabBarSpace();
   const { organization, schedule, weekStart, editing } = props;
 
   /** One day's height is set by whichever slot has more people, so the two
@@ -33,7 +35,7 @@ export function ScheduleDayGrid(props: GridProps) {
     Math.max(1, ...SLOTS.map((slot) => schedule.shiftsFor(day, slot).length)) + (editing ? 1 : 0);
 
   return (
-    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 28 }}>
+    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: tabBarSpace }}>
       <View
         style={{
           backgroundColor: c.card,

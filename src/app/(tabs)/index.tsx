@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
+import { useTabBarSpace } from '@/components/ui/tab-bar';
 import { Icon } from '@/components/ui/icon';
 import { ScheduleDayGrid } from '@/components/schedule-day-grid';
 import { ScheduleGrid, type ScheduleLayout } from '@/components/schedule-grid';
@@ -19,6 +20,7 @@ import type { Shift, ShiftSlot } from '@/types';
 
 export default function ScheduleScreen() {
   const c = usePalette();
+  const tabBarSpace = useTabBarSpace();
   const { session } = useAuth();
   const { team, cover, swaps } = useAppData();
   const schedule = useSchedule();
@@ -186,7 +188,7 @@ export default function ScheduleScreen() {
 
         {schedule.shifts.length === 0 && !editing ? (
           <ScrollView
-            contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 }}
+            contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 32, paddingBottom: tabBarSpace, gap: 10 }}
             refreshControl={<RefreshControl refreshing={schedule.loading} onRefresh={refresh} />}>
             <Icon name="schedule" size={40} color={c.textTertiary} />
             <Text style={{ fontSize: 15, color: c.textSecondary, textAlign: 'center' }}>

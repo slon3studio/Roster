@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { useTabBarSpace } from '@/components/ui/tab-bar';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Icon } from '@/components/ui/icon';
 import { JoinCode } from '@/components/ui/join-code';
 import { ShiftLogEditorSheet } from '@/components/shift-sheets';
@@ -33,6 +34,7 @@ export default function ProfileScreen() {
   const earnings = useEarnings();
 
   const [editingLog, setEditingLog] = useState<ShiftLog | null>(null);
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [armedForRemoval, setArmedForRemoval] = useState<string | null>(null);
 
   const isManager = session?.profile.role === 'manager';
@@ -353,12 +355,7 @@ export default function ProfileScreen() {
         </Card>
 
         <Pressable
-          onPress={() =>
-            Alert.alert('Se res želiš odjaviti?', undefined, [
-              { text: 'Prekliči', style: 'cancel' },
-              { text: 'Odjava', style: 'destructive', onPress: () => void signOut() },
-            ])
-          }
+          onPress={() => setConfirmingSignOut(true)}
           disabled={busy}
           style={{
             minHeight: 46,
@@ -383,6 +380,19 @@ export default function ProfileScreen() {
           }
         />
       ) : null}
+
+      <ConfirmDialog
+        visible={confirmingSignOut}
+        title="Se res želiš odjaviti?"
+        confirmLabel="Odjava"
+        destructive
+        busy={busy}
+        onConfirm={() => {
+          setConfirmingSignOut(false);
+          void signOut();
+        }}
+        onCancel={() => setConfirmingSignOut(false)}
+      />
     </View>
   );
 }

@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { Platform, Pressable, Text, View, type DimensionValue } from 'react-native';
@@ -60,7 +61,47 @@ type Props = TabBarProps & {
   badges?: Partial<Record<string, number>>;
 };
 
-export function TabBar({ state, navigation, badges }: Props) {
+export function TabBar(props: Props) {
+  return (
+    <>
+      <BottomFade />
+      <Bar {...props} />
+    </>
+  );
+}
+
+/**
+ * Fades the content out before it reaches the bar, and covers the strip
+ * beside and below it.
+ *
+ * Without this, a floating bar leaves the schedule fully visible around and
+ * under itself, which reads as the app spilling out of its own frame. The fade
+ * makes a row sliding underneath dissolve instead of being chopped in half.
+ *
+ * `pointerEvents: none` matters: it sits over the scroll view, and without it
+ * the bottom of every screen would stop responding to taps.
+ */
+function BottomFade() {
+  const c = usePalette();
+  const insets = useSafeAreaInsets();
+
+  // Reaches a little above the bar so the fade has room to be gradual.
+  const height: DimensionValue =
+    Platform.OS === 'web'
+      ? (`calc(${BAR_HEIGHT + BAR_INSET * 2 + 34}px + env(safe-area-inset-bottom, 0px))` as unknown as DimensionValue)
+      : BAR_HEIGHT + BAR_INSET * 2 + 34 + insets.bottom;
+
+  return (
+    <LinearGradient
+      pointerEvents="none"
+      colors={[c.background + '00', c.background + 'E6', c.background]}
+      locations={[0, 0.55, 0.8]}
+      style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height }}
+    />
+  );
+}
+
+function Bar({ state, navigation, badges }: Props) {
   const c = usePalette();
   const insets = useSafeAreaInsets();
 

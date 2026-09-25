@@ -112,6 +112,7 @@ Web-only pieces, and nothing else:
 | `public/sw.js` | Service worker. **Network-first on purpose** — a cache-first worker would serve yesterday's roster to somebody who has signal. |
 | `public/icons/` | 192/512/maskable for Android, 180 for the iOS home screen. |
 | `src/components/ui/time-field.web.tsx` | `@react-native-community/datetimepicker` has no web build. Metro picks this file on web by extension; the native `time-field.tsx` is untouched. |
+| `src/components/ui/icon.web.tsx` | `expo-symbols` renders through a 943 KB Material Symbols font in the browser, for glyphs Ionicons already has. The phone still gets real SF Symbols from `icon.tsx`; the shared vocabulary lives in `icon-set.ts`. |
 
 `vercel.json` carries the two things a static host has to be told: rewrite
 every path to `/index.html` (only that file exists on disk — expo-router
@@ -131,6 +132,25 @@ guards it too.
 - **iPhone:** open the link in **Safari** (Chrome on iOS cannot install),
   Share → **Add to Home Screen**.
 - **Android:** Chrome offers **Install app** by itself.
+
+### Two web-only traps, both hit once
+
+`react-native-web` ships `Alert` as `class Alert { static alert() {} }` — an
+empty function. Every confirmation routed through it worked in Expo Go and did
+nothing at all in the browser, which is the worst way for a bug to behave. Use
+`components/ui/confirm-dialog.tsx` instead; `Modal` *is* implemented on web.
+
+`expo-router` hands `SafeAreaProvider` a hard `insets: { bottom: 0 }` on web,
+so `useSafeAreaInsets()` can never report the home-indicator strip there. Read
+it from CSS with `env(safe-area-inset-bottom)` — `components/ui/tab-bar.tsx`
+does, for both its own offset and the space it asks screens to reserve.
+
+### The floating tab bar
+
+`components/ui/tab-bar.tsx` is absolutely positioned, so it takes no space out
+of the screen above it. Every scrolling screen therefore has to reserve room
+itself with `useTabBarSpace()` — that is the one thing to remember when adding
+a screen, and the height and the safe-area strip are stated only there.
 
 ### What the web version cannot do
 

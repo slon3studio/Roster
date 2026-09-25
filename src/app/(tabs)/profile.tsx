@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
@@ -45,10 +45,15 @@ export default function ProfileScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.profile.id, isManager]);
 
-  useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Re-read on every focus, not once on mount: a catalog change or an approved
+  // cover made elsewhere would otherwise still be invisible here.
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+      void team.load();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [load]),
+  );
 
   // Arming expires on its own, so a stray tap does not leave a delete button
   // sitting there waiting to be hit by accident.

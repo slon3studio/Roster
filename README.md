@@ -178,6 +178,22 @@ Renaming yourself needs no migration: 0001 already grants
 grant is what refuses a worker writing `role = 'manager'` — in Postgres, not in
 the client.
 
+## Screens reload on focus, not on mount
+
+Every tab, and the catalog, re-reads its data in `useFocusEffect` rather than a
+mount-only `useEffect`. Loading once was the cause of a class of bug that only
+showed up in use: a duty deleted in the catalog still appeared under people's
+names on the schedule, and an approved cover still showed the old person —
+because each screen holds its own cached copy and nothing told it to look
+again. Signing out was the only cure.
+
+The database was never wrong about any of it. `resolve_cover` reassigns the
+shift and `resolve_swap` exchanges both, marking them `origin = 'manual'` so a
+later rebuild cannot undo an agreed exchange. Only the client was stale.
+
+`useFocusEffect` also fires on first mount, so it replaces the mount effect
+rather than adding to it.
+
 ## Two kinds of hand-over, deliberately named apart
 
 - **Menjava** (cover) — one shift changes hands and the person who asked stops

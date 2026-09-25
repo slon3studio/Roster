@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { useTabBarSpace } from '@/components/ui/tab-bar';
@@ -47,10 +48,15 @@ function WorkerWishes() {
    */
   const [edits, setEdits] = useState<Record<number, DaySelection> | null>(null);
 
-  useEffect(() => {
-    void availability.loadPositions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Re-read on every focus, not once on mount: a catalog change or an approved
+  // cover made elsewhere would otherwise still be invisible here.
+  useFocusEffect(
+    useCallback(() => {
+      void availability.loadPositions();
+      void availability.loadWeek(weekStart);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [weekStart]),
+  );
 
   useEffect(() => {
     void availability.loadWeek(weekStart);
@@ -214,10 +220,15 @@ function ManagerWishes() {
   const availability = useAvailability();
   const [weekStart, setWeekStart] = useState(defaultWeek());
 
-  useEffect(() => {
-    void availability.loadPositions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Re-read on every focus, not once on mount: a catalog change or an approved
+  // cover made elsewhere would otherwise still be invisible here.
+  useFocusEffect(
+    useCallback(() => {
+      void availability.loadPositions();
+      void availability.loadWeek(weekStart);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [weekStart]),
+  );
 
   useEffect(() => {
     void availability.loadWeek(weekStart);

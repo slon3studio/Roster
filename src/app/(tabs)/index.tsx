@@ -1,3 +1,4 @@
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
@@ -34,10 +35,27 @@ export default function ScheduleScreen() {
 
   const isManager = session?.profile.role === 'manager';
 
-  useEffect(() => {
-    void schedule.loadLookups();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  /**
+   * Re-read everything whenever this tab comes back into view.
+   *
+   * Loading once on mount left the screen showing things that were no longer
+   * true: a duty deleted in the catalog still appeared under people's names,
+   * and an approved cover still showed the old person, because both live in
+   * this screen's own cached copy. Signing out was the only way to clear it.
+   *
+   * `useFocusEffect` also runs on first mount, so it replaces the mount
+   * effects rather than adding to them.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      void schedule.loadLookups();
+      void schedule.loadWeek(weekStart);
+      void cover.load();
+      void swaps.load();
+      void team.load();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [weekStart]),
+  );
 
   useEffect(() => {
     void schedule.loadWeek(weekStart);

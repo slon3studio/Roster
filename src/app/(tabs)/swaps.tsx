@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { useTabBarSpace } from '@/components/ui/tab-bar';
@@ -43,11 +44,18 @@ export default function SwapsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    void schedule.loadLookups();
-    void loadNearbyWeeks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Re-read on every focus, not once on mount: a catalog change or an approved
+  // cover made elsewhere would otherwise still be invisible here.
+  useFocusEffect(
+    useCallback(() => {
+      void schedule.loadLookups();
+      void loadNearbyWeeks();
+      void cover.load();
+      void swaps.load();
+      void team.load();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loadNearbyWeeks]),
+  );
 
   const refresh = useCallback(async () => {
     cover.clearMessages();

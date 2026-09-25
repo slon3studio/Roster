@@ -49,6 +49,14 @@
         display: flex;
         height: 100%;
         flex: 1;
+        /* Installed on iOS the app draws behind the home indicator, because
+           viewport-fit=cover is what removes the browser's own bars. Without
+           reserving that strip the tab bar is pushed under it and the bottom
+           of the schedule is cut off. border-box keeps the padding inside the
+           100%, and the 0px fallback means devices with no inset are
+           unaffected. */
+        box-sizing: border-box;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
       }
       /* A phone app does not let you select the interface by dragging, and
            does not bounce the whole page. Inputs keep both. */

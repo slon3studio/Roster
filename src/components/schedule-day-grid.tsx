@@ -33,7 +33,7 @@ export function ScheduleDayGrid(props: GridProps) {
     Math.max(1, ...SLOTS.map((slot) => schedule.shiftsFor(day, slot).length)) + (editing ? 1 : 0);
 
   return (
-    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 18 }}>
+    <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 28 }}>
       <View
         style={{
           backgroundColor: c.card,

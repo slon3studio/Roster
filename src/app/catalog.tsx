@@ -5,6 +5,7 @@ import { Pressable, RefreshControl, ScrollView, Switch, Text, TextInput, View } 
 import { DestructiveButton, Sheet, SheetFootnote, SheetRow } from '@/components/sheet';
 import { Message } from '@/components/ui/auth-parts';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 import { AppBackground, Card, EmptyHint, PositionBadge, SectionTitle } from '@/components/ui/design';
 import { useCatalog } from '@/hooks/use-catalog';
 import { usePalette } from '@/hooks/use-palette';
@@ -26,6 +27,8 @@ export default function CatalogScreen() {
   const [editingDuty, setEditingDuty] = useState<Duty | null>(null);
   const [addingPosition, setAddingPosition] = useState(false);
   const [addingDuty, setAddingDuty] = useState(false);
+  const [deletingPosition, setDeletingPosition] = useState<Position | null>(null);
+  const [deletingDuty, setDeletingDuty] = useState<Duty | null>(null);
 
   useEffect(() => {
     void catalog.load();
@@ -59,24 +62,36 @@ export default function CatalogScreen() {
             <EmptyHint text="Ni delovnih mest." />
           ) : (
             catalog.positions.map((position, index) => (
-              <Pressable key={position.id} onPress={() => setEditingPosition(position)}>
+              <View key={position.id}>
                 {index > 0 ? (
                   <View style={{ height: 1, backgroundColor: c.border, marginVertical: 10 }} />
                 ) : null}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <PositionBadge position={position} size={10} />
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      color: position.is_active ? c.text : c.textSecondary,
-                    }}>
-                    {position.name}
-                  </Text>
-                  {!position.is_active ? <HiddenPill /> : null}
-                  <View style={{ flex: 1 }} />
-                  <Text style={{ fontSize: 14, color: c.textTertiary }}>›</Text>
-                </View>
-              </Pressable>
+                <SwipeToDelete
+                  accessibilityLabel={`Izbriši ${position.name}`}
+                  onDelete={() => setDeletingPosition(position)}>
+                  <Pressable onPress={() => setEditingPosition(position)}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                        paddingVertical: 4,
+                      }}>
+                      <PositionBadge position={position} size={10} />
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          color: position.is_active ? c.text : c.textSecondary,
+                        }}>
+                        {position.name}
+                      </Text>
+                      {!position.is_active ? <HiddenPill /> : null}
+                      <View style={{ flex: 1 }} />
+                      <Text style={{ fontSize: 14, color: c.textTertiary }}>›</Text>
+                    </View>
+                  </Pressable>
+                </SwipeToDelete>
+              </View>
             ))
           )}
 
@@ -102,20 +117,32 @@ export default function CatalogScreen() {
             <EmptyHint text="Ni zadolžitev." />
           ) : (
             catalog.duties.map((duty, index) => (
-              <Pressable key={duty.id} onPress={() => setEditingDuty(duty)}>
+              <View key={duty.id}>
                 {index > 0 ? (
                   <View style={{ height: 1, backgroundColor: c.border, marginVertical: 10 }} />
                 ) : null}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Text
-                    style={{ fontSize: 15, color: duty.is_active ? c.text : c.textSecondary }}>
-                    {duty.name}
-                  </Text>
-                  {!duty.is_active ? <HiddenPill /> : null}
-                  <View style={{ flex: 1 }} />
-                  <Text style={{ fontSize: 14, color: c.textTertiary }}>›</Text>
-                </View>
-              </Pressable>
+                <SwipeToDelete
+                  accessibilityLabel={`Izbriši ${duty.name}`}
+                  onDelete={() => setDeletingDuty(duty)}>
+                  <Pressable onPress={() => setEditingDuty(duty)}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                        paddingVertical: 4,
+                      }}>
+                      <Text
+                        style={{ fontSize: 15, color: duty.is_active ? c.text : c.textSecondary }}>
+                        {duty.name}
+                      </Text>
+                      {!duty.is_active ? <HiddenPill /> : null}
+                      <View style={{ flex: 1 }} />
+                      <Text style={{ fontSize: 14, color: c.textTertiary }}>›</Text>
+                    </View>
+                  </Pressable>
+                </SwipeToDelete>
+              </View>
             ))
           )}
 
@@ -134,7 +161,8 @@ export default function CatalogScreen() {
         </Card>
 
         <Text style={{ fontSize: 12, color: c.textTertiary, textAlign: 'center' }}>
-          Skritega ni izbrisano — smene in želje, ki se nanj sklicujejo, ostanejo nedotaknjene.
+          Povleci vrstico v levo za izbris. Izklop je varnejši: smene in želje, ki se nanj
+          sklicujejo, ostanejo nedotaknjene.
         </Text>
       </ScrollView>
 
@@ -180,8 +208,54 @@ export default function CatalogScreen() {
           }}
         />
       ) : null}
+      <ConfirmDialog
+        visible={!!deletingPosition}
+        title={deletingPosition ? `Izbrišem "${deletingPosition.name}"?` : ''}
+        message={usageWarning(
+          deletingPosition ? catalog.usesOf(deletingPosition.id) : 0,
+          'Pri teh smenah in željah bo delovno mesto ostalo prazno.',
+        )}
+        confirmLabel="Izbriši"
+        destructive
+        busy={catalog.working}
+        onConfirm={() => {
+          if (deletingPosition) void catalog.deletePosition(deletingPosition.id);
+          setDeletingPosition(null);
+        }}
+        onCancel={() => setDeletingPosition(null)}
+      />
+
+      <ConfirmDialog
+        visible={!!deletingDuty}
+        title={deletingDuty ? `Izbrišem "${deletingDuty.name}"?` : ''}
+        message={usageWarning(
+          deletingDuty ? catalog.usesOf(deletingDuty.id) : 0,
+          'Pri teh smenah bo zadolžitev ostala prazna.',
+        )}
+        confirmLabel="Izbriši"
+        destructive
+        busy={catalog.working}
+        onConfirm={() => {
+          if (deletingDuty) void catalog.deleteDuty(deletingDuty.id);
+          setDeletingDuty(null);
+        }}
+        onCancel={() => setDeletingDuty(null)}
+      />
     </View>
   );
+}
+
+/**
+ * What the confirmation says, given how many things point at the entry.
+ *
+ * Deleting is allowed either way — this is the only place the cost is stated,
+ * so it has to be stated plainly rather than as a general warning nobody
+ * reads. `null` means the count is unknown, which is itself worth saying.
+ */
+function usageWarning(uses: number | null, consequence: string) {
+  if (uses === null) return 'Tega ni mogoče razveljaviti.';
+  if (uses === 0) return 'Nič se ne sklicuje nanj. Tega ni mogoče razveljaviti.';
+  return `Uporabljeno v ${uses} vnosih. ${consequence} Tega ni mogoče razveljaviti.`;
 }
 
 function HiddenPill() {
@@ -320,9 +394,9 @@ function PositionSheet({
 
           <RemoveRow
             uses={uses}
-            usedText={`Uporabljeno je v ${uses} smenah in željah, zato ga ni mogoče izbrisati — lahko ga samo izklopiš zgoraj.`}
             label="Izbriši delovno mesto"
             confirmTitle={`Izbrišem "${position.name}"?`}
+            consequence="Pri teh smenah in željah bo delovno mesto ostalo prazno."
             onDelete={onDelete}
           />
         </>
@@ -380,9 +454,9 @@ function DutySheet({
 
           <RemoveRow
             uses={uses}
-            usedText={`Uporabljena je v ${uses} smenah, zato je ni mogoče izbrisati — lahko jo samo izklopiš zgoraj.`}
             label="Izbriši zadolžitev"
             confirmTitle={`Izbrišem "${duty.name}"?`}
+            consequence="Pri teh smenah bo zadolžitev ostala prazna."
             onDelete={onDelete}
           />
         </>
@@ -392,46 +466,36 @@ function DutySheet({
 }
 
 /**
- * Delete, or the reason there is no delete.
+ * Delete, with the cost stated.
  *
- * Both foreign keys are `on delete set null`, so removing an entry that shifts
- * point at would silently blank them rather than fail. Migration 0016 refuses
- * that in the database; this says so before the button is pressed, because a
- * button that always errors is worse than no button.
+ * Deleting is unconditional by the owner's decision, so the only protection
+ * left is that the confirmation names how many shifts and wishes it will blank
+ * — an informed choice rather than a blocked one.
  */
 function RemoveRow({
   uses,
-  usedText,
   label,
   confirmTitle,
+  consequence,
   onDelete,
 }: {
   uses: number | null;
-  usedText: string;
   label: string;
   confirmTitle: string;
+  consequence: string;
   onDelete: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
 
-  // Unknown is not zero. Without the count the only honest thing is to not
-  // offer the button at all.
-  if (uses === null) {
-    return (
-      <SheetFootnote text="Brisanje ni na voljo: v Supabase poženi migracijo 0016_catalog_delete.sql." />
-    );
-  }
-  if (uses > 0) return <SheetFootnote text={usedText} />;
-
   return (
     <>
       <DestructiveButton title={label} onPress={() => setConfirming(true)} />
-      <SheetFootnote text="Nič se ne sklicuje nanj, zato je izbris varen." />
+      <SheetFootnote text="Lahko ga tudi samo izklopiš zgoraj — takrat se nikjer ne izgubi." />
 
       <ConfirmDialog
         visible={confirming}
         title={confirmTitle}
-        message="Tega ni mogoče razveljaviti."
+        message={usageWarning(uses, consequence)}
         confirmLabel="Izbriši"
         destructive
         onConfirm={() => {

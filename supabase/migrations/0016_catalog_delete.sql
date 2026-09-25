@@ -1,86 +1,30 @@
 -- ----------------------------------------------------------------------------
--- 0016 — let a manager delete a position or a duty, but only an unused one
+-- 0016 — let a manager delete a position or a duty
 --
--- Until now the catalog could only hide an entry (`is_active = false`). That
--- was deliberate: both foreign keys are `on delete set null`, so deleting a
--- position that older shifts point at does not fail — it silently blanks who
--- worked the bar last month. For a schedule people are paid from, that is data
--- loss with no warning.
+-- Until now the catalog could only hide an entry (`is_active = false`).
 --
--- So deleting is allowed, and refused the moment anything references the row.
--- The check lives in a trigger rather than in the app, for the same reason
--- every other rule here does: the client can be bypassed, the database cannot.
--- A manager who really wants an entry gone can clear it off the shifts first,
--- or hide it instead.
+-- Deleting is not free: both foreign keys are `on delete set null`, so
+-- removing a position that older shifts point at does not fail — it blanks the
+-- position on those shifts. Last month's schedule stops saying who was on the
+-- bar. That is the owner's call to make, and it has been made; the app names
+-- the number of affected shifts in its confirmation so the choice is at least
+-- an informed one.
+--
+-- An earlier draft of this migration blocked the delete with a trigger. If
+-- that version was already run, the drops below remove it.
 -- ----------------------------------------------------------------------------
-
--- ----------------------------------------------------------------------------
--- 1. Refuse a delete that would blank an existing shift or availability row
--- ----------------------------------------------------------------------------
-create or replace function public.positions_block_used_delete()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  shift_count integer;
-  wish_count  integer;
-begin
-  select count(*) into shift_count
-  from public.shifts where position_id = old.id;
-
-  select count(*) into wish_count
-  from public.availability_preferences where position_id = old.id;
-
-  if shift_count > 0 or wish_count > 0 then
-    raise exception
-      'Delovnega mesta "%" ni mogoče izbrisati: uporabljeno je v % smenah in % željah. Raje ga izklopi.',
-      old.name, shift_count, wish_count
-      using errcode = '23503';
-  end if;
-
-  return old;
-end;
-$$;
 
 drop trigger if exists positions_block_used_delete on public.positions;
-create trigger positions_block_used_delete
-  before delete on public.positions
-  for each row execute function public.positions_block_used_delete();
-
-create or replace function public.duties_block_used_delete()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  shift_count integer;
-begin
-  select count(*) into shift_count
-  from public.shifts where duty_id = old.id;
-
-  if shift_count > 0 then
-    raise exception
-      'Zadolžitve "%" ni mogoče izbrisati: uporabljena je v % smenah. Raje jo izklopi.',
-      old.name, shift_count
-      using errcode = '23503';
-  end if;
-
-  return old;
-end;
-$$;
-
-drop trigger if exists duties_block_used_delete on public.duties;
-create trigger duties_block_used_delete
-  before delete on public.duties
-  for each row execute function public.duties_block_used_delete();
+drop trigger if exists duties_block_used_delete    on public.duties;
+drop function if exists public.positions_block_used_delete();
+drop function if exists public.duties_block_used_delete();
 
 -- ----------------------------------------------------------------------------
--- 2. Now the grant and the policy
+-- 1. The grant and the policy
 --
 -- Narrow on purpose: only a manager, and only inside their own restaurant.
+-- Nothing here lets a worker delete anything, and nothing lets either of them
+-- reach another restaurant's catalog.
 -- ----------------------------------------------------------------------------
 grant delete on public.positions to authenticated;
 grant delete on public.duties    to authenticated;
@@ -106,12 +50,13 @@ create policy "duties_delete_by_manager"
   );
 
 -- ----------------------------------------------------------------------------
--- 3. How many things point at a catalog entry
+-- 2. How many things point at a catalog entry
 --
--- The app asks before offering the button, so the answer is "Izbriši" or a
--- sentence explaining why not — rather than a button that fails when pressed.
--- SECURITY DEFINER because a worker may not read every shift, and the count
--- itself gives nothing away beyond their own restaurant.
+-- Only used to warn. The app shows "uporabljeno v 12 smenah" in the
+-- confirmation rather than refusing, so a deletion is never a surprise.
+--
+-- SECURITY DEFINER because a worker cannot read every shift row, and the count
+-- alone reveals nothing beyond their own restaurant.
 -- ----------------------------------------------------------------------------
 create or replace function public.catalog_usage()
 returns table (kind text, id uuid, uses bigint)

@@ -117,7 +117,9 @@ export default function SettingsScreen() {
             <SectionTitle text="Urna postavka" />
             <Card>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Text style={{ flex: 1, fontSize: 15, fontWeight: '500', color: c.text }}>
+                <Text
+                  numberOfLines={1}
+                  style={{ flex: 1, fontSize: 15, fontWeight: '500', color: c.text }}>
                   Moja postavka
                 </Text>
                 <TextInput
@@ -127,7 +129,7 @@ export default function SettingsScreen() {
                   placeholder="0,00"
                   placeholderTextColor={c.textTertiary}
                   style={{
-                    minWidth: 84,
+                    width: 74,
                     textAlign: 'right',
                     fontSize: 16,
                     color: c.text,
@@ -225,7 +227,11 @@ function SaveButton({
       disabled={disabled}
       style={{
         marginTop: 10,
-        minHeight: 42,
+        // As wide as its label. A full-width button reads as the main action of
+        // the screen, and saving a name is not that.
+        alignSelf: 'flex-start',
+        minHeight: 38,
+        paddingHorizontal: 18,
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: radius.sm,

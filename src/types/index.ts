@@ -19,7 +19,24 @@ export type Organization = {
   morning_end: string;
   afternoon_start: string;
   afternoon_end: string;
+  /**
+   * Which halves of the day this restaurant runs. A café that shuts at four
+   * has no afternoon shift, and offering one produces wishes that can never
+   * be met. Defaults to both; the database refuses having neither.
+   */
+  uses_morning: boolean;
+  uses_afternoon: boolean;
 };
+
+/** The slots this restaurant actually runs, in the order they are shown. */
+export function enabledSlots(organization: Organization): ShiftSlot[] {
+  const slots: ShiftSlot[] = [];
+  if (organization.uses_morning) slots.push('morning');
+  if (organization.uses_afternoon) slots.push('afternoon');
+  // Should be impossible (the database has a check constraint), but a grid
+  // with no columns at all would be a worse way to find out.
+  return slots.length > 0 ? slots : ['morning', 'afternoon'];
+}
 
 /** Extends auth.users. `id` is the Supabase auth user id. */
 export type Profile = {

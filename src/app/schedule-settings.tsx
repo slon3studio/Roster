@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 
 import { DestructiveButton, Sheet, SheetFootnote, SheetRow } from '@/components/sheet';
@@ -7,21 +7,35 @@ import { Message } from '@/components/ui/auth-parts';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 import { AppBackground, Card, EmptyHint, PositionBadge, SectionTitle } from '@/components/ui/design';
+import { TimeField } from '@/components/ui/time-field';
+import { useAuth } from '@/contexts/auth';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useOrgSettings, slotName, type ScheduleSettings } from '@/hooks/use-org-settings';
 import { usePalette } from '@/hooks/use-palette';
-import { positionColors, radius } from '@/lib/theme';
-import type { Duty, Position } from '@/types';
+import * as time from '@/lib/time';
+import { positionColors, radius, semantic } from '@/lib/theme';
+import type { Duty, Position, ShiftSlot } from '@/types';
 
 /**
- * Manager screen for the restaurant's own vocabulary.
+ * Everything about how *this* restaurant's schedule is shaped.
  *
- * Šank / Rajon / Priprava are seeded because they are *this* restaurant's
- * words. Another customer needs Peč, Dostava, Kuhinja — and without this
- * screen the only way to change them is editing rows in Supabase by hand.
+ * Which halves of the day it runs, when each one starts and ends, and its own
+ * vocabulary — Šank / Rajon / Priprava are seeded because they are this
+ * restaurant's words; another customer needs Peč, Dostava, Kuhinja.
+ *
+ * One screen rather than three, because these settings are read together: the
+ * times mean nothing without knowing which slots are live, and a position is
+ * only useful for a slot that exists.
  */
-export default function CatalogScreen() {
+export default function ScheduleSettingsScreen() {
   const c = usePalette();
+  const { session } = useAuth();
   const catalog = useCatalog();
+  const org = useOrgSettings();
+
+  // Derived, not mirrored: null until something is edited, so a save made
+  // elsewhere shows through instead of being overwritten by stale state.
+  const [edits, setEdits] = useState<ScheduleSettings | null>(null);
 
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const [editingDuty, setEditingDuty] = useState<Duty | null>(null);
@@ -30,10 +44,33 @@ export default function CatalogScreen() {
   const [deletingPosition, setDeletingPosition] = useState<Position | null>(null);
   const [deletingDuty, setDeletingDuty] = useState<Duty | null>(null);
 
-  useEffect(() => {
-    void catalog.load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      void catalog.load();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
+
+  if (!session) return null;
+  const { organization } = session;
+
+  const stored: ScheduleSettings = {
+    morning_start: organization.morning_start,
+    morning_end: organization.morning_end,
+    afternoon_start: organization.afternoon_start,
+    afternoon_end: organization.afternoon_end,
+    uses_morning: organization.uses_morning,
+    uses_afternoon: organization.uses_afternoon,
+  };
+  const settings = edits ?? stored;
+  const changed = (Object.keys(stored) as (keyof ScheduleSettings)[]).some(
+    (key) => settings[key] !== stored[key],
+  );
+
+  const patch = (next: Partial<ScheduleSettings>) => {
+    org.clearMessages();
+    setEdits({ ...settings, ...next });
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -48,11 +85,69 @@ export default function CatalogScreen() {
           <Pressable onPress={() => router.back()} hitSlop={8}>
             <Text style={{ fontSize: 22, color: c.accent }}>‹</Text>
           </Pressable>
-          <Text style={{ fontSize: 26, fontWeight: '700', color: c.text }}>Delovna mesta</Text>
+          <Text style={{ fontSize: 26, fontWeight: '700', color: c.text }}>Nastavitve urnika</Text>
         </View>
 
         {catalog.error ? <Message text={catalog.error} kind="error" /> : null}
         {catalog.notice ? <Message text={catalog.notice} kind="notice" /> : null}
+
+        <SectionTitle text="Katere smene delate" />
+        <Card>
+          <SlotRow
+            slot="morning"
+            enabled={settings.uses_morning}
+            canDisable={settings.uses_afternoon}
+            onToggle={(on) => patch({ uses_morning: on })}
+            start={settings.morning_start}
+            end={settings.morning_end}
+            onStart={(value) => patch({ morning_start: value })}
+            onEnd={(value) => patch({ morning_end: value })}
+          />
+
+          <View style={{ height: 1, backgroundColor: c.border, marginVertical: 14 }} />
+
+          <SlotRow
+            slot="afternoon"
+            enabled={settings.uses_afternoon}
+            canDisable={settings.uses_morning}
+            onToggle={(on) => patch({ uses_afternoon: on })}
+            start={settings.afternoon_start}
+            end={settings.afternoon_end}
+            onStart={(value) => patch({ afternoon_start: value })}
+            onEnd={(value) => patch({ afternoon_end: value })}
+          />
+
+          {changed ? (
+            <Pressable
+              onPress={() => {
+                void org.save(settings).then((ok) => {
+                  if (ok) setEdits(null);
+                });
+              }}
+              disabled={org.saving}
+              style={{
+                marginTop: 16,
+                minHeight: 44,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: radius.sm,
+                backgroundColor: c.accent,
+                opacity: org.saving ? 0.6 : 1,
+              }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>
+                {org.saving ? 'Shranjujem…' : 'Shrani nastavitve smen'}
+              </Text>
+            </Pressable>
+          ) : null}
+        </Card>
+
+        <Text style={{ fontSize: 12, color: c.textTertiary }}>
+          Izklopljena smena izgine iz urnika in iz oddaje želja. Smene, ki so že na urniku,
+          ostanejo — izklop velja za naprej.
+        </Text>
+
+        {org.error ? <Message text={org.error} kind="error" /> : null}
+        {org.notice ? <Message text={org.notice} kind="notice" /> : null}
 
         <Card>
           <SectionTitle text="Delovna mesta" trailing="Šank, Rajon …" />
@@ -505,5 +600,85 @@ function RemoveRow({
         onCancel={() => setConfirming(false)}
       />
     </>
+  );
+}
+
+/**
+ * One half of the day: on or off, and when it runs.
+ *
+ * The times stay editable while the slot is off, just dimmed — turning a slot
+ * back on and finding its old hours intact is less surprising than finding
+ * them reset, and the manager may well want to set the hours before switching
+ * it on.
+ */
+function SlotRow({
+  slot,
+  enabled,
+  canDisable,
+  onToggle,
+  start,
+  end,
+  onStart,
+  onEnd,
+}: {
+  slot: ShiftSlot;
+  enabled: boolean;
+  /** False when this is the only slot left on. The database refuses having
+   *  none, and a switch you can flip only to be told no is worse than one
+   *  that will not flip. */
+  canDisable: boolean;
+  onToggle: (on: boolean) => void;
+  start: string;
+  end: string;
+  onStart: (value: string) => void;
+  onEnd: (value: string) => void;
+}) {
+  const c = usePalette();
+  const tint = slot === 'morning' ? semantic.teal : semantic.orange;
+
+  return (
+    <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: enabled ? tint : c.textTertiary,
+          }}
+        />
+        <Text
+          style={{
+            flex: 1,
+            fontSize: 15,
+            fontWeight: '600',
+            color: enabled ? c.text : c.textSecondary,
+          }}>
+          {slotName[slot]}
+        </Text>
+        <Switch value={enabled} onValueChange={onToggle} disabled={enabled && !canDisable} />
+      </View>
+
+      <View style={{ opacity: enabled ? 1 : 0.45, gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ flex: 1, fontSize: 14, color: c.textSecondary }}>Začetek</Text>
+          <TimeField
+            value={time.toDate(start)}
+            onChange={(next) => onStart(time.fromDate(next))}
+          />
+        </View>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ flex: 1, fontSize: 14, color: c.textSecondary }}>Konec</Text>
+          <TimeField value={time.toDate(end)} onChange={(next) => onEnd(time.fromDate(next))} />
+        </View>
+
+        {time.minutes(end, true) <= time.minutes(start) ? (
+          <Text style={{ fontSize: 11, color: semantic.orange }}>
+            Konec je pred začetkom — smena bo tekla čez polnoč.
+          </Text>
+        ) : null}
+      </View>
+    </View>
   );
 }

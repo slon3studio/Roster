@@ -167,6 +167,26 @@ export default function SettingsScreen() {
           </>
         ) : null}
 
+        {isManager ? (
+          <>
+            <SectionTitle text="Restavracija" />
+            <Pressable onPress={() => router.push('/schedule-settings')}>
+              <Card>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Icon name="schedule" size={19} color={c.accent} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, color: c.text }}>Nastavitve urnika</Text>
+                    <Text style={{ fontSize: 12, color: c.textSecondary }}>
+                      Smene in njihov čas, delovna mesta, zadolžitve
+                    </Text>
+                  </View>
+                  <Icon name="chevronRight" size={15} color={c.textTertiary} />
+                </View>
+              </Card>
+            </Pressable>
+          </>
+        ) : null}
+
         <SectionTitle text="Videz" />
         <Card>
           {THEME_OPTIONS.map((option, index) => {

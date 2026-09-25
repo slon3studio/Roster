@@ -178,6 +178,26 @@ Renaming yourself needs no migration: 0001 already grants
 grant is what refuses a worker writing `role = 'manager'` — in Postgres, not in
 the client.
 
+## Schedule settings belong to the restaurant
+
+`app/schedule-settings.tsx` (manager only, reached from Nastavitve) is where a
+restaurant says how its schedule is shaped: which halves of the day it runs,
+when each starts and ends, and its own positions and duties. One screen,
+because the settings are read together — the times mean nothing without
+knowing which slots are live.
+
+Turning a slot off is a setting, not a deletion. Shifts already on the
+schedule for that slot stay; it stops new ones being wished for or generated,
+so flipping it back does not lose history and flipping it off does not rewrite
+last week. Migration 0017 enforces this in three places, since the client is
+not the only way in: the generator skips a disabled slot, a trigger refuses a
+wish for one, and another refuses a hand-added shift in one. `enabledSlots()`
+is what the grids and the wishes selector read.
+
+The times had existed on `organizations` since 0003, but the only column a
+manager was granted UPDATE on was `name` — visible and unchangeable. 0017
+grants exactly the six columns needed and still not `join_code`.
+
 ## Screens reload on focus, not on mount
 
 Every tab, and the catalog, re-reads its data in `useFocusEffect` rather than a

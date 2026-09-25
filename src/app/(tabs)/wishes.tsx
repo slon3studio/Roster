@@ -23,7 +23,7 @@ import { usePalette } from '@/hooks/use-palette';
 import { semantic } from '@/lib/theme';
 import { ALL_DAYS, dayDescription, dayName, defaultWeek } from '@/lib/week';
 import type { DaySelection, ShiftPreference, ShiftSlot } from '@/types';
-import { preferenceAllowsPosition } from '@/types';
+import { enabledSlots, preferenceAllowsPosition } from '@/types';
 
 export default function WishesScreen() {
   const { session } = useAuth();
@@ -65,6 +65,7 @@ function WorkerWishes() {
 
   if (!session) return null;
 
+  const slots = enabledSlots(session.organization);
   const selections = edits ?? availability.selectionsFor(session.profile.id);
   const working = Object.values(selections).filter((s) => s.preference !== 'off').length;
 
@@ -149,6 +150,7 @@ function WorkerWishes() {
                 <PreferenceSelector
                   value={selection.preference}
                   onChange={(next) => setPreference(day, next)}
+                  slots={slots}
                 />
 
                 {isWorking && availability.positions.length > 0 ? (

@@ -8,6 +8,7 @@ import type { TeamHook } from '@/hooks/use-team';
 import { usePalette } from '@/hooks/use-palette';
 import { radius, semantic } from '@/lib/theme';
 import { ALL_DAYS, dayDescription, isToday, shortDayName } from '@/lib/week';
+import { enabledSlots } from '@/types';
 import type { Organization, Shift, ShiftSlot } from '@/types';
 
 /**
@@ -45,8 +46,6 @@ const CELL_HEIGHT = 68;
 const SLOT_COLUMN_WIDTH = 48;
 const DAY_COLUMN_WIDTH = 124;
 
-const SLOTS: ShiftSlot[] = ['morning', 'afternoon'];
-
 function slotColor(slot: ShiftSlot) {
   return slot === 'morning' ? semantic.teal : semantic.orange;
 }
@@ -63,6 +62,7 @@ export function ScheduleGrid(props: GridProps) {
   const c = usePalette();
   const tabBarSpace = useTabBarSpace();
   const { organization, schedule, editing } = props;
+  const SLOTS = enabledSlots(organization);
 
   const rows = (slot: ShiftSlot) => schedule.rowCount(slot, 1) + (editing ? 1 : 0);
 
@@ -131,6 +131,7 @@ function DayColumn({
 }: GridProps & { day: number; rows: (slot: ShiftSlot) => number }) {
   const c = usePalette();
   const today = isToday(day, props.weekStart);
+  const SLOTS = enabledSlots(props.organization);
 
   return (
     <View style={{ borderLeftWidth: 1, borderLeftColor: c.border }}>

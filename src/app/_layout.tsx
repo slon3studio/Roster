@@ -61,7 +61,7 @@ function Gate() {
 
       <Stack.Protected guard={signedIn}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="catalog" />
+        <Stack.Screen name="schedule-settings" />
         <Stack.Screen name="settings" />
       </Stack.Protected>
     </Stack>

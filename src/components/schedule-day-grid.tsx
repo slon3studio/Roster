@@ -5,13 +5,12 @@ import { Cell, type GridProps } from '@/components/schedule-grid';
 import { usePalette } from '@/hooks/use-palette';
 import { radius, semantic } from '@/lib/theme';
 import { ALL_DAYS, dayDescription, isToday, shortDayName } from '@/lib/week';
+import { enabledSlots } from '@/types';
 import type { ShiftSlot } from '@/types';
 
 const HEADER_HEIGHT = 46;
 const CELL_HEIGHT = 66;
 const DAY_COLUMN_WIDTH = 58;
-
-const SLOTS: ShiftSlot[] = ['morning', 'afternoon'];
 
 function slotColor(slot: ShiftSlot) {
   return slot === 'morning' ? semantic.teal : semantic.orange;
@@ -28,6 +27,7 @@ export function ScheduleDayGrid(props: GridProps) {
   const c = usePalette();
   const tabBarSpace = useTabBarSpace();
   const { organization, schedule, weekStart, editing } = props;
+  const SLOTS = enabledSlots(organization);
 
   /** One day's height is set by whichever slot has more people, so the two
    *  columns stay level and the day label lines up with both. */

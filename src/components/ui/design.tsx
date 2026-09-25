@@ -178,12 +178,22 @@ export function preferenceTint(preference: ShiftPreference, accent: string): str
 export function PreferenceSelector({
   value,
   onChange,
+  slots,
 }: {
   value: ShiftPreference;
   onChange: (next: ShiftPreference) => void;
+  /** Which slots the restaurant runs. Anything else must not be offerable —
+   *  the database refuses a wish for a switched-off slot, and a button that
+   *  always errors is worse than no button. `any` is dropped when only one
+   *  slot is live, because there it would mean the same as that slot. */
+  slots: ShiftSlot[];
 }) {
   const c = usePalette();
-  const options: ShiftPreference[] = ['morning', 'afternoon', 'off', 'any'];
+  const options: ShiftPreference[] = [
+    ...slots,
+    'off',
+    ...(slots.length > 1 ? (['any'] as ShiftPreference[]) : []),
+  ];
 
   return (
     <View
